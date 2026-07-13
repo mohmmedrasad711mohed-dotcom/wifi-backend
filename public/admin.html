@@ -1,0 +1,1715 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>لوحة تحكم شبكة الثريا نت – الإدارة المتكاملة</title>
+    <!-- Bootstrap 5 RTL -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.2.3/dist/css/bootstrap.rtl.min.css" rel="stylesheet" />
+    <!-- Font Awesome 6 -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css" />
+    <style>
+        /* ===== الأنماط الأساسية ===== */
+        * {
+            box-sizing: border-box;
+        }
+        html,
+        body {
+            height: 100%;
+            margin: 0;
+            font-family: 'Cairo', 'Tahoma', sans-serif;
+            background-color: #f4f6f9;
+        }
+        :root {
+            --gold: #D4AF37;
+            --dark-blue: #0F172A;
+            --light-gray: #f4f6f9;
+        }
+        .text-gold {
+            color: var(--gold);
+        }
+        .bg-gold {
+            background-color: var(--gold);
+        }
+        .btn-gold {
+            background-color: var(--gold);
+            border-color: var(--gold);
+            color: #fff;
+        }
+        .btn-gold:hover {
+            background-color: #b8962e;
+            border-color: #b8962e;
+            color: #fff;
+        }
+
+        /* ===== شاشة البداية ===== */
+        #splash-screen {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: var(--dark-blue);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            z-index: 9999;
+            flex-direction: column;
+            transition: opacity 0.6s ease;
+        }
+        #splash-screen .logo {
+            font-size: 72px;
+            color: var(--gold);
+            animation: pulse 1.5s infinite;
+        }
+        #splash-screen h2 {
+            color: #fff;
+            margin-top: 16px;
+            font-weight: 600;
+            letter-spacing: 1px;
+        }
+        #splash-screen p {
+            color: #94a3b8;
+            margin-bottom: 24px;
+        }
+        .spinner-gold {
+            color: var(--gold) !important;
+        }
+        @keyframes pulse {
+            0%,
+            100% {
+                transform: scale(1);
+            }
+            50% {
+                transform: scale(1.08);
+            }
+        }
+
+        /* ===== تسجيل الدخول ===== */
+        #login-wrapper {
+            display: none;
+            min-height: 100vh;
+            background: linear-gradient(135deg, var(--dark-blue) 0%, #1e293b 100%);
+            align-items: center;
+            justify-content: center;
+        }
+        #login-wrapper:not(.hidden) {
+            display: flex;
+        }
+        #login-wrapper.hidden {
+            display: none !important;
+        }
+        .login-card {
+            max-width: 420px;
+            width: 100%;
+            background: #fff;
+            padding: 2.5rem 2rem;
+            border-radius: 24px;
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+            animation: slideUp 0.5s ease;
+        }
+        .login-card .fa-wifi {
+            color: var(--gold);
+        }
+        .login-card h3 {
+            font-weight: 600;
+            color: var(--dark-blue);
+        }
+        .login-card .form-control {
+            border-radius: 12px;
+            padding: 12px 16px;
+            border: 1px solid #e2e8f0;
+        }
+        .login-card .form-control:focus {
+            border-color: var(--gold);
+            box-shadow: 0 0 0 3px rgba(212, 175, 55, 0.2);
+        }
+        .login-card .btn-login {
+            background: var(--dark-blue);
+            border: none;
+            padding: 12px;
+            border-radius: 12px;
+            font-weight: 600;
+            transition: 0.3s;
+        }
+        .login-card .btn-login:hover {
+            background: #1e293b;
+            transform: translateY(-2px);
+        }
+
+        /* ===== لوحة التحكم ===== */
+        #dashboard-wrapper {
+            height: 100vh;
+            overflow: hidden;
+        }
+        #dashboard-wrapper.hidden {
+            display: none !important;
+        }
+
+        /* الشريط الجانبي */
+        .sidebar {
+            height: 100vh;
+            overflow-y: auto;
+            background: var(--dark-blue);
+            color: #fff;
+            padding-top: 20px;
+            position: sticky;
+            top: 0;
+            scrollbar-width: thin;
+            scrollbar-color: #475569 transparent;
+        }
+        .sidebar::-webkit-scrollbar {
+            width: 4px;
+        }
+        .sidebar::-webkit-scrollbar-thumb {
+            background: #475569;
+            border-radius: 8px;
+        }
+        .sidebar .brand {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 10px;
+            padding: 10px 0 20px;
+            border-bottom: 1px solid #1e293b;
+        }
+        .sidebar .brand i {
+            font-size: 28px;
+            color: var(--gold);
+        }
+        .sidebar .brand h6 {
+            font-weight: 600;
+            margin: 0;
+            color: #fff;
+            letter-spacing: 0.5px;
+        }
+        .sidebar nav a {
+            color: #cbd5e1;
+            padding: 12px 20px;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            text-decoration: none;
+            border-radius: 12px;
+            margin: 4px 12px;
+            transition: 0.25s;
+            cursor: pointer;
+            font-weight: 500;
+        }
+        .sidebar nav a i {
+            width: 20px;
+            text-align: center;
+            font-size: 1.1rem;
+        }
+        .sidebar nav a:hover {
+            background: #1e293b;
+            color: #fff;
+        }
+        .sidebar nav a.active {
+            background: #1e3a8a;
+            color: #fff;
+            box-shadow: 0 4px 12px rgba(30, 58, 138, 0.4);
+        }
+        .sidebar .logout-btn {
+            border-top: 1px solid #1e293b;
+            padding: 16px 12px;
+            margin-top: 12px;
+        }
+        .sidebar .logout-btn .btn {
+            border-radius: 12px;
+            font-weight: 500;
+            padding: 10px;
+            transition: 0.3s;
+        }
+        .sidebar .logout-btn .btn:hover {
+            background: #dc2626;
+            border-color: #dc2626;
+            color: #fff;
+        }
+
+        /* منطقة المحتوى */
+        .content-area {
+            height: 100vh;
+            overflow-y: auto;
+            padding: 20px 24px;
+            background: var(--light-gray);
+            scroll-behavior: smooth;
+        }
+        .content-area::-webkit-scrollbar {
+            width: 6px;
+        }
+        .content-area::-webkit-scrollbar-thumb {
+            background: #94a3b8;
+            border-radius: 8px;
+        }
+
+        /* بطاقات الإحصائيات */
+        .stat-card {
+            background: #fff;
+            padding: 20px 16px;
+            border-radius: 18px;
+            box-shadow: 0 2px 12px rgba(0, 0, 0, 0.04);
+            border-right: 5px solid var(--gold);
+            transition: 0.3s;
+            height: 100%;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+        }
+        .stat-card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 12px 30px rgba(0, 0, 0, 0.07);
+        }
+        .stat-number {
+            font-size: 30px;
+            font-weight: 700;
+            color: var(--dark-blue);
+            line-height: 1.2;
+        }
+        .stat-label {
+            color: #64748b;
+            font-size: 14px;
+            font-weight: 500;
+            margin-top: 4px;
+        }
+        .stat-icon {
+            font-size: 32px;
+            color: var(--gold);
+            opacity: 0.5;
+        }
+
+        /* الفلاتر والعناوين */
+        .page-header {
+            display: flex;
+            flex-wrap: wrap;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px;
+            gap: 12px;
+        }
+        .page-header h4 {
+            font-weight: 700;
+            color: var(--dark-blue);
+            margin: 0;
+        }
+        .page-header h4 i {
+            margin-left: 8px;
+        }
+        .filter-section {
+            background: #fff;
+            padding: 16px 20px;
+            border-radius: 16px;
+            margin-bottom: 20px;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04);
+        }
+        .filter-section .form-label {
+            font-weight: 600;
+            font-size: 13px;
+            color: #475569;
+        }
+        .filter-section .form-control,
+        .filter-section .form-select {
+            border-radius: 10px;
+            border: 1px solid #e2e8f0;
+            padding: 8px 14px;
+            font-size: 14px;
+        }
+        .filter-section .form-control:focus,
+        .filter-section .form-select:focus {
+            border-color: var(--gold);
+            box-shadow: 0 0 0 3px rgba(212, 175, 55, 0.15);
+        }
+
+        /* الجداول */
+        .table-responsive {
+            background: #fff;
+            padding: 8px 12px;
+            border-radius: 18px;
+            box-shadow: 0 2px 12px rgba(0, 0, 0, 0.04);
+            overflow-x: auto;
+        }
+        .table {
+            margin-bottom: 0;
+            font-size: 14px;
+        }
+        .table thead th {
+            background: #f8fafc;
+            color: #0f172a;
+            font-weight: 600;
+            border-bottom: 2px solid #e2e8f0;
+            padding: 12px 10px;
+            white-space: nowrap;
+        }
+        .table tbody td {
+            padding: 12px 10px;
+            vertical-align: middle;
+            border-bottom: 1px solid #f1f5f9;
+        }
+        .table tbody tr:hover {
+            background: #f8fafc;
+        }
+        .badge-status {
+            padding: 4px 14px;
+            border-radius: 50px;
+            font-size: 12px;
+            font-weight: 600;
+        }
+
+        /* الأزرار */
+        .btn-sm {
+            padding: 6px 12px;
+            font-size: 13px;
+            border-radius: 10px;
+        }
+        .action-buttons .btn {
+            margin: 2px;
+            border-radius: 8px;
+        }
+        .action-buttons .btn i {
+            font-size: 14px;
+        }
+
+        /* المودالات */
+        .modal-content {
+            border-radius: 24px;
+            border: none;
+            overflow: hidden;
+        }
+        .modal-header {
+            background: var(--dark-blue);
+            color: #fff;
+            border: none;
+            padding: 18px 24px;
+        }
+        .modal-header .btn-close {
+            filter: invert(1);
+            opacity: 0.8;
+        }
+        .modal-body {
+            padding: 24px;
+        }
+        .modal-footer {
+            padding: 16px 24px;
+            border-top: 1px solid #e2e8f0;
+        }
+        .modal .form-label {
+            font-weight: 600;
+            font-size: 14px;
+            color: #1e293b;
+        }
+        .modal .form-control,
+        .modal .form-select {
+            border-radius: 10px;
+            border: 1px solid #e2e8f0;
+            padding: 10px 14px;
+        }
+        .modal .form-control:focus,
+        .modal .form-select:focus {
+            border-color: var(--gold);
+            box-shadow: 0 0 0 3px rgba(212, 175, 55, 0.15);
+        }
+
+        /* رسائل التنبيه */
+        .toast-container {
+            position: fixed;
+            bottom: 24px;
+            right: 24px;
+            z-index: 9999;
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+            max-width: 90%;
+        }
+        .toast-custom {
+            background: #1e293b;
+            color: #fff;
+            padding: 14px 24px;
+            border-radius: 14px;
+            box-shadow: 0 8px 30px rgba(0, 0, 0, 0.2);
+            animation: slideUp 0.3s ease;
+            font-weight: 500;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            border-right: 6px solid var(--gold);
+        }
+        .toast-custom.success {
+            border-right-color: #22c55e;
+        }
+        .toast-custom.danger {
+            border-right-color: #ef4444;
+        }
+        .toast-custom.warning {
+            border-right-color: #f59e0b;
+        }
+        .toast-custom.info {
+            border-right-color: #3b82f6;
+        }
+
+        @keyframes slideUp {
+            from {
+                transform: translateY(30px);
+                opacity: 0;
+            }
+            to {
+                transform: translateY(0);
+                opacity: 1;
+            }
+        }
+
+        /* استجابة */
+        @media (max-width: 992px) {
+            .sidebar {
+                height: auto;
+                position: relative;
+                padding-bottom: 10px;
+            }
+            .content-area {
+                height: auto;
+                overflow: visible;
+            }
+            #dashboard-wrapper {
+                height: auto;
+                overflow: visible;
+            }
+            html,
+            body {
+                overflow: auto;
+            }
+        }
+        @media (max-width: 768px) {
+            .content-area {
+                padding: 16px;
+            }
+            .stat-number {
+                font-size: 22px;
+            }
+            .stat-card {
+                padding: 16px;
+            }
+            .page-header {
+                flex-direction: column;
+                align-items: stretch;
+                gap: 10px;
+            }
+            .page-header .btn-group {
+                flex-wrap: wrap;
+            }
+            .filter-section .row {
+                gap: 10px;
+            }
+            .table-responsive {
+                padding: 6px;
+            }
+            .table {
+                font-size: 12px;
+            }
+            .table thead th,
+            .table tbody td {
+                padding: 8px 6px;
+            }
+            .login-card {
+                padding: 2rem 1.5rem;
+                margin: 16px;
+            }
+        }
+        @media (max-width: 576px) {
+            .stat-number {
+                font-size: 18px;
+            }
+            .btn-sm {
+                font-size: 11px;
+                padding: 4px 8px;
+            }
+            .modal-dialog {
+                margin: 10px;
+            }
+        }
+
+        /* أدوات إضافية */
+        .hidden {
+            display: none !important;
+        }
+        .cursor-pointer {
+            cursor: pointer;
+        }
+        .gap-2 {
+            gap: 8px;
+        }
+        .gap-3 {
+            gap: 12px;
+        }
+    </style>
+</head>
+<body>
+
+    <!-- ============================================================ -->
+    <!-- شاشة البداية (Splash) -->
+    <div id="splash-screen">
+        <i class="fas fa-wifi logo"></i>
+        <h2>شبكة الثريا نت</h2>
+        <p>لوحة التحكم المتكاملة</p>
+        <div class="spinner-border spinner-gold mt-2" role="status"></div>
+    </div>
+
+    <!-- ============================================================ -->
+    <!-- تسجيل الدخول -->
+    <div id="login-wrapper" class="hidden">
+        <div class="login-card">
+            <div class="text-center mb-4">
+                <i class="fas fa-wifi fa-3x"></i>
+                <h3 class="mt-3">شبكة الثريا نت</h3>
+                <p class="text-muted">تسجيل دخول الإدارة</p>
+            </div>
+            <form id="loginForm">
+                <div class="mb-3">
+                    <label class="form-label">اسم المستخدم</label>
+                    <input type="text" id="adminUsername" class="form-control" placeholder="admin" required />
+                </div>
+                <div class="mb-3">
+                    <label class="form-label">كلمة المرور</label>
+                    <input type="password" id="adminPassword" class="form-control" placeholder="••••••••" required />
+                </div>
+                <button type="submit" class="btn btn-login btn-gold w-100 py-2" id="loginBtn">
+                    <i class="fas fa-sign-in-alt me-2"></i> دخول
+                </button>
+                <div id="loginError" class="text-danger text-center mt-2 small"></div>
+            </form>
+        </div>
+    </div>
+
+    <!-- ============================================================ -->
+    <!-- لوحة التحكم الرئيسية -->
+    <div id="dashboard-wrapper" class="hidden">
+        <div class="container-fluid h-100">
+            <div class="row h-100">
+                <!-- الشريط الجانبي -->
+                <div class="col-lg-2 col-md-3 sidebar p-0">
+                    <div class="brand">
+                        <i class="fas fa-wifi"></i>
+                        <h6>الإدارة</h6>
+                    </div>
+                    <nav id="sidebarNav">
+                        <a href="#" class="active" data-tab="stats"><i class="fas fa-chart-pie"></i> لوحة المعلومات</a>
+                        <a href="#" data-tab="users"><i class="fas fa-users"></i> المستخدمين</a>
+                        <a href="#" data-tab="cards"><i class="fas fa-id-card"></i> الكروت</a>
+                        <a href="#" data-tab="categories"><i class="fas fa-tags"></i> الفئات</a>
+                        <a href="#" data-tab="transactions"><i class="fas fa-exchange-alt"></i> المعاملات</a>
+                        <a href="#" data-tab="reports"><i class="fas fa-file-alt"></i> التقارير</a>
+                        <a href="#" data-tab="admins"><i class="fas fa-user-shield"></i> المديرين</a>
+                    </nav>
+                    <div class="logout-btn">
+                        <button onclick="logout()" class="btn btn-outline-light btn-sm w-100">
+                            <i class="fas fa-sign-out-alt me-1"></i> خروج
+                        </button>
+                    </div>
+                </div>
+
+                <!-- المحتوى -->
+                <div class="col-lg-10 col-md-9 content-area">
+
+                    <!-- ===== صفحة الإحصائيات ===== -->
+                    <div id="page-stats">
+                        <div class="page-header">
+                            <h4><i class="fas fa-chart-pie text-gold"></i> لوحة المعلومات</h4>
+                            <button class="btn btn-sm btn-outline-secondary" onclick="loadStats()">
+                                <i class="fas fa-sync-alt"></i> تحديث
+                            </button>
+                        </div>
+                        <div class="row g-4" id="stats-container">
+                            <div class="col-6 col-md-3"><div class="stat-card"><div class="stat-number" id="stat-users">0</div><div class="stat-label">إجمالي المستخدمين</div></div></div>
+                            <div class="col-6 col-md-3"><div class="stat-card"><div class="stat-number" id="stat-available">0</div><div class="stat-label">الكروت المتاحة</div></div></div>
+                            <div class="col-6 col-md-3"><div class="stat-card"><div class="stat-number" id="stat-sold">0</div><div class="stat-label">الكروت المباعة</div></div></div>
+                            <div class="col-6 col-md-3"><div class="stat-card"><div class="stat-number" id="stat-revenue">0 ر.ي</div><div class="stat-label">إجمالي الإيرادات</div></div></div>
+                            <div class="col-6 col-md-3"><div class="stat-card"><div class="stat-number" id="stat-today">0</div><div class="stat-label">معاملات اليوم</div></div></div>
+                            <div class="col-6 col-md-3"><div class="stat-card"><div class="stat-number" id="stat-month">0</div><div class="stat-label">معاملات الشهر</div></div></div>
+                        </div>
+                    </div>
+
+                    <!-- ===== صفحة المستخدمين ===== -->
+                    <div id="page-users" class="hidden">
+                        <div class="page-header">
+                            <h4><i class="fas fa-users text-gold"></i> المستخدمين</h4>
+                            <div class="d-flex flex-wrap gap-2">
+                                <input type="text" id="userSearch" class="form-control form-control-sm" placeholder="بحث..." style="min-width:150px;" onkeyup="loadUsers()" />
+                                <button class="btn btn-sm btn-success" onclick="showUserModal()"><i class="fas fa-plus"></i> إضافة</button>
+                                <button class="btn btn-sm btn-primary" onclick="showRechargeModal()"><i class="fas fa-money-bill-wave"></i> شحن</button>
+                            </div>
+                        </div>
+                        <div class="table-responsive">
+                            <table class="table table-hover" id="usersTable">
+                                <thead><tr><th>#</th><th>الاسم</th><th>الهاتف</th><th>الرصيد</th><th>رقم الحساب</th><th>الحالة</th><th>تاريخ التسجيل</th><th>الإجراءات</th></tr></thead>
+                                <tbody></tbody>
+                            </table>
+                        </div>
+                    </div>
+
+                    <!-- ===== صفحة الكروت ===== -->
+                    <div id="page-cards" class="hidden">
+                        <div class="page-header">
+                            <h4><i class="fas fa-id-card text-gold"></i> الكروت</h4>
+                            <div class="d-flex flex-wrap gap-2">
+                                <input type="text" id="cardSearch" class="form-control form-control-sm" placeholder="بحث..." style="min-width:120px;" onkeyup="loadCards()" />
+                                <select id="cardFilterCategory" class="form-select form-select-sm" style="min-width:100px;" onchange="loadCards()">
+                                    <option value="">كل الفئات</option>
+                                </select>
+                                <select id="cardFilterStatus" class="form-select form-select-sm" style="min-width:100px;" onchange="loadCards()">
+                                    <option value="">الكل</option>
+                                    <option value="available">متاحة</option>
+                                    <option value="sold">مباعة</option>
+                                </select>
+                                <button class="btn btn-sm btn-info" onclick="showBulkImportModal()"><i class="fas fa-paste"></i> نسخ ولصق</button>
+                                <button class="btn btn-sm btn-danger" onclick="deleteSelectedCards()"><i class="fas fa-trash-alt"></i> حذف المحدد</button>
+                                <button class="btn btn-sm btn-outline-danger" onclick="deleteAllCards()"><i class="fas fa-trash"></i> حذف الكل</button>
+                            </div>
+                        </div>
+                        <div class="table-responsive">
+                            <table class="table table-hover" id="cardsTable">
+                                <thead><tr><th><input type="checkbox" id="selectAllCards" onchange="toggleSelectAll()" /></th><th>#</th><th>الكود</th><th>الفئة</th><th>الحالة</th><th>المستخدم</th><th>رقم المستلم</th><th>التاريخ</th><th>الإجراءات</th></tr></thead>
+                                <tbody></tbody>
+                            </table>
+                        </div>
+                    </div>
+
+                    <!-- ===== صفحة الفئات ===== -->
+                    <div id="page-categories" class="hidden">
+                        <div class="page-header">
+                            <h4><i class="fas fa-tags text-gold"></i> الفئات</h4>
+                            <button class="btn btn-sm btn-success" onclick="showCategoryModal()"><i class="fas fa-plus"></i> إضافة فئة</button>
+                        </div>
+                        <div class="table-responsive">
+                            <table class="table table-hover" id="categoriesTable">
+                                <thead><tr><th>#</th><th>الاسم</th><th>السعر (ر.ي)</th><th>عدد الكروت</th><th>تاريخ الإضافة</th><th>الإجراءات</th></tr></thead>
+                                <tbody></tbody>
+                            </table>
+                        </div>
+                    </div>
+
+                    <!-- ===== صفحة المعاملات ===== -->
+                    <div id="page-transactions" class="hidden">
+                        <div class="page-header">
+                            <h4><i class="fas fa-exchange-alt text-gold"></i> المعاملات</h4>
+                            <div class="d-flex flex-wrap gap-2">
+                                <select id="transFilterType" class="form-select form-select-sm" style="min-width:100px;" onchange="loadTransactions()">
+                                    <option value="">الكل</option>
+                                    <option value="purchase">شراء</option>
+                                    <option value="transfer">تحويل</option>
+                                </select>
+                                <input type="date" id="transFilterDate" class="form-control form-control-sm" style="min-width:130px;" onchange="loadTransactions()" />
+                                <button class="btn btn-sm btn-secondary" onclick="loadTransactions()"><i class="fas fa-filter"></i> فلتر</button>
+                                <button class="btn btn-sm btn-danger" onclick="deleteAllTransactions()"><i class="fas fa-trash"></i> حذف الكل</button>
+                                <button class="btn btn-sm btn-primary" onclick="exportTransactions()"><i class="fas fa-file-export"></i> تصدير</button>
+                            </div>
+                        </div>
+                        <div class="table-responsive">
+                            <table class="table table-hover" id="transactionsTable">
+                                <thead><tr><th>#</th><th>المستخدم</th><th>المبلغ</th><th>النوع</th><th>الوصف</th><th>التاريخ</th></tr></thead>
+                                <tbody></tbody>
+                            </table>
+                        </div>
+                    </div>
+
+                    <!-- ===== صفحة التقارير ===== -->
+                    <div id="page-reports" class="hidden">
+                        <h4 class="mb-4"><i class="fas fa-file-alt text-gold"></i> التقارير</h4>
+                        <div class="filter-section">
+                            <div class="row g-3">
+                                <div class="col-12 col-md-3">
+                                    <label class="form-label">نوع التقرير</label>
+                                    <select id="reportType" class="form-select form-select-sm">
+                                        <option value="all">تقرير كامل</option>
+                                        <option value="user">حسب المستخدم</option>
+                                        <option value="date">حسب الفترة</option>
+                                        <option value="type">حسب النوع</option>
+                                    </select>
+                                </div>
+                                <div class="col-12 col-md-3">
+                                    <label class="form-label">المستخدم (اختياري)</label>
+                                    <input type="text" id="reportUser" class="form-control form-control-sm" placeholder="اسم المستخدم" />
+                                </div>
+                                <div class="col-6 col-md-2">
+                                    <label class="form-label">من تاريخ</label>
+                                    <input type="date" id="reportDateFrom" class="form-control form-control-sm" />
+                                </div>
+                                <div class="col-6 col-md-2">
+                                    <label class="form-label">إلى تاريخ</label>
+                                    <input type="date" id="reportDateTo" class="form-control form-control-sm" />
+                                </div>
+                                <div class="col-12 col-md-2 d-flex align-items-end">
+                                    <button class="btn btn-primary btn-sm w-100" onclick="generateReport()"><i class="fas fa-print"></i> عرض التقرير</button>
+                                </div>
+                            </div>
+                        </div>
+                        <div id="reportResult" class="bg-white p-3 rounded-4 shadow-sm mt-3"></div>
+                    </div>
+
+                    <!-- ===== صفحة المديرين ===== -->
+                    <div id="page-admins" class="hidden">
+                        <div class="page-header">
+                            <h4><i class="fas fa-user-shield text-gold"></i> المديرين</h4>
+                            <button class="btn btn-sm btn-success" onclick="showAdminModal()"><i class="fas fa-plus"></i> إضافة مدير</button>
+                        </div>
+                        <div class="table-responsive">
+                            <table class="table table-hover" id="adminsTable">
+                                <thead><tr><th>#</th><th>اسم المستخدم</th><th>تاريخ الإنشاء</th><th>الإجراءات</th></tr></thead>
+                                <tbody></tbody>
+                            </table>
+                        </div>
+                    </div>
+
+                </div><!-- end content-area -->
+            </div><!-- end row -->
+        </div><!-- end container -->
+    </div>
+
+    <!-- ============================================================ -->
+    <!-- المودالات -->
+    <!-- ============================================================ -->
+
+    <!-- مودال إضافة كروت بالنسخ واللصق -->
+    <div class="modal fade" id="bulkImportModal" tabindex="-1">
+        <div class="modal-dialog modal-dialog-scrollable modal-lg">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title"><i class="fas fa-paste me-2"></i> إضافة كروت بالنسخ واللصق</h5>
+                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+                </div>
+                <form id="bulkImportForm">
+                    <div class="modal-body">
+                        <div class="mb-3">
+                            <label class="form-label">اختر الفئة</label>
+                            <select id="import_category" class="form-select" required></select>
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label">أكواد الكروت (كل كود في سطر)</label>
+                            <textarea id="import_codes" class="form-control" rows="10" placeholder="WIFI-123456-789&#10;WIFI-234567-890&#10;WIFI-345678-901" required></textarea>
+                            <small class="text-muted">الصق الأكواد هنا، كل كود في سطر منفصل</small>
+                        </div>
+                    </div>
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">إلغاء</button>
+                        <button type="submit" class="btn btn-success"><i class="fas fa-save"></i> إضافة الكروت</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <!-- مودال المستخدم -->
+    <div class="modal fade" id="userModal" tabindex="-1">
+        <div class="modal-dialog modal-dialog-scrollable">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="userModalTitle">إضافة مستخدم</h5>
+                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+                </div>
+                <form id="userForm">
+                    <div class="modal-body">
+                        <input type="hidden" id="user_id" />
+                        <div class="mb-3"><label class="form-label">الاسم</label><input type="text" id="user_name" class="form-control" required /></div>
+                        <div class="mb-3"><label class="form-label">رقم الهاتف</label><input type="text" id="user_phone" class="form-control" required /></div>
+                        <div class="mb-3"><label class="form-label">كلمة المرور</label><input type="text" id="user_password" class="form-control" placeholder="اترك فارغاً لتغييرها" /></div>
+                        <div class="mb-3"><label class="form-label">الرصيد</label><input type="number" step="0.01" id="user_balance" class="form-control" value="0" /></div>
+                        <div class="mb-3"><label class="form-label">الحالة</label><select id="user_status" class="form-select"><option value="active">نشط</option><option value="suspended">موقوف</option></select></div>
+                    </div>
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">إلغاء</button>
+                        <button type="submit" class="btn btn-primary">حفظ</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <!-- مودال شحن الرصيد -->
+    <div class="modal fade" id="rechargeModal" tabindex="-1">
+        <div class="modal-dialog modal-dialog-scrollable">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title"><i class="fas fa-money-bill-wave me-2"></i> شحن رصيد المستخدم</h5>
+                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+                </div>
+                <form id="rechargeForm">
+                    <div class="modal-body">
+                        <div class="mb-3"><label class="form-label">اختر المستخدم</label><select id="recharge_user" class="form-select" required></select></div>
+                        <div class="mb-3"><label class="form-label">المبلغ (ر.ي)</label><input type="number" step="0.01" id="recharge_amount" class="form-control" value="10" required /></div>
+                        <div class="mb-3"><label class="form-label">ملاحظة (اختياري)</label><input type="text" id="recharge_note" class="form-control" placeholder="سبب الشحن..." /></div>
+                    </div>
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">إلغاء</button>
+                        <button type="submit" class="btn btn-success">شحن</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <!-- مودال الفئة -->
+    <div class="modal fade" id="categoryModal" tabindex="-1">
+        <div class="modal-dialog modal-dialog-scrollable">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="categoryModalTitle">إضافة فئة</h5>
+                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+                </div>
+                <form id="categoryForm">
+                    <div class="modal-body">
+                        <input type="hidden" id="category_id" />
+                        <div class="mb-3"><label class="form-label">اسم الفئة</label><input type="text" id="category_name" class="form-control" required /></div>
+                        <div class="mb-3"><label class="form-label">السعر (ر.ي)</label><input type="number" step="0.01" id="category_price" class="form-control" required /></div>
+                    </div>
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">إلغاء</button>
+                        <button type="submit" class="btn btn-primary">حفظ</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <!-- مودال المدير -->
+    <div class="modal fade" id="adminModal" tabindex="-1">
+        <div class="modal-dialog modal-dialog-scrollable">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="adminModalTitle">إضافة مدير</h5>
+                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+                </div>
+                <form id="adminForm">
+                    <div class="modal-body">
+                        <input type="hidden" id="admin_id" />
+                        <div class="mb-3"><label class="form-label">اسم المستخدم</label><input type="text" id="admin_username" class="form-control" required /></div>
+                        <div class="mb-3"><label class="form-label">كلمة المرور</label><input type="text" id="admin_password" class="form-control" placeholder="اترك فارغاً لتغييرها" /></div>
+                    </div>
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">إلغاء</button>
+                        <button type="submit" class="btn btn-primary">حفظ</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <!-- ============================================================ -->
+    <!-- JavaScript -->
+    <script>
+        // ================================================================
+        // الإعدادات الأساسية
+        // ================================================================
+const API_URL = '/api';   // ✅ مسار نسبي، يعمل تلقائياً على Railway        let currentToken = localStorage.getItem('adminToken') || null;
+        let selectedCardIds = new Set();
+        let categoriesLoaded = false;
+
+        // ================================================================
+        // دوال مساعدة
+        // ================================================================
+        function showSplash(show) {
+            document.getElementById('splash-screen').style.display = show ? 'flex' : 'none';
+        }
+
+        function showLogin() {
+            const wrapper = document.getElementById('login-wrapper');
+            wrapper.classList.remove('hidden');
+            wrapper.style.display = 'flex';
+            document.getElementById('dashboard-wrapper').classList.add('hidden');
+        }
+
+        function showDashboard() {
+            const loginWrapper = document.getElementById('login-wrapper');
+            loginWrapper.classList.add('hidden');
+            loginWrapper.style.display = 'none';
+            document.getElementById('dashboard-wrapper').classList.remove('hidden');
+            // تحميل البيانات الأولية
+            loadStats();
+            loadUsers();
+            loadCards();
+            loadCategories();
+            loadTransactions();
+            loadAdmins();
+            loadCategorySelects();
+        }
+
+        function getHeaders() {
+            return {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${currentToken}`
+            };
+        }
+
+        async function apiFetch(endpoint, options = {}) {
+            try {
+                const res = await fetch(`${API_URL}${endpoint}`, {
+                    ...options,
+                    headers: {
+                        ...getHeaders(),
+                        ...(options.headers || {})
+                    }
+                });
+                if (res.status === 401) {
+                    logout();
+                    throw new Error('انتهت الجلسة');
+                }
+                if (!res.ok) {
+                    const text = await res.text();
+                    throw new Error(text || 'خطأ في الخادم');
+                }
+                return await res.json();
+            } catch (err) {
+                console.error('❌ API Error:', err);
+                throw err;
+            }
+        }
+
+        function showToast(message, type = 'success') {
+            const container = document.getElementById('toastContainer') || (() => {
+                const div = document.createElement('div');
+                div.id = 'toastContainer';
+                div.className = 'toast-container';
+                document.body.appendChild(div);
+                return div;
+            })();
+            const toast = document.createElement('div');
+            toast.className = `toast-custom ${type}`;
+            toast.innerHTML = `<i class="fas fa-${type === 'success' ? 'check-circle' : type === 'danger' ? 'exclamation-circle' : type === 'warning' ? 'exclamation-triangle' : 'info-circle'}"></i> ${message}`;
+            container.appendChild(toast);
+            setTimeout(() => {
+                toast.style.opacity = '0';
+                toast.style.transition = 'opacity 0.4s';
+                setTimeout(() => toast.remove(), 400);
+            }, 3500);
+        }
+
+        // ================================================================
+        // تسجيل الدخول والخروج
+        // ================================================================
+        document.getElementById('loginForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const username = document.getElementById('adminUsername').value.trim();
+            const password = document.getElementById('adminPassword').value.trim();
+            const errorDiv = document.getElementById('loginError');
+            errorDiv.innerText = '';
+            if (!username || !password) {
+                errorDiv.innerText = 'الرجاء إدخال اسم المستخدم وكلمة المرور';
+                return;
+            }
+            const loginBtn = document.getElementById('loginBtn');
+            loginBtn.disabled = true;
+            loginBtn.innerHTML = '<span class="spinner-border spinner-border-sm me-2"></span> جاري التحقق...';
+            try {
+                const res = await fetch(`${API_URL}/admin/login`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ username, password })
+                });
+                const data = await res.json();
+                if (res.status === 200 && data.status) {
+                    currentToken = data.token;
+                    localStorage.setItem('adminToken', currentToken);
+                    showDashboard();
+                } else {
+                    errorDiv.innerText = data.message || 'فشل تسجيل الدخول';
+                }
+            } catch (err) {
+                errorDiv.innerText = 'خطأ في الاتصال بالخادم';
+                console.error(err);
+            } finally {
+                loginBtn.disabled = false;
+                loginBtn.innerHTML = '<i class="fas fa-sign-in-alt me-2"></i> دخول';
+            }
+        });
+
+        function logout() {
+            localStorage.removeItem('adminToken');
+            currentToken = null;
+            showLogin();
+            showToast('تم تسجيل الخروج', 'info');
+        }
+
+        // ================================================================
+        // التنقل بين الصفحات
+        // ================================================================
+        document.addEventListener('DOMContentLoaded', function() {
+            const sidebarLinks = document.querySelectorAll('.sidebar nav a[data-tab]');
+            sidebarLinks.forEach(link => {
+                link.addEventListener('click', function(e) {
+                    e.preventDefault();
+                    sidebarLinks.forEach(l => l.classList.remove('active'));
+                    this.classList.add('active');
+                    const tab = this.dataset.tab;
+                    document.querySelectorAll('.content-area > div[id^="page-"]').forEach(el => el.classList.add('hidden'));
+                    const target = document.getElementById(`page-${tab}`);
+                    if (target) target.classList.remove('hidden');
+                    // تحميل البيانات حسب التبويب
+                    switch (tab) {
+                        case 'stats':
+                            loadStats();
+                            break;
+                        case 'users':
+                            loadUsers();
+                            break;
+                        case 'cards':
+                            loadCards();
+                            break;
+                        case 'categories':
+                            loadCategories();
+                            break;
+                        case 'transactions':
+                            loadTransactions();
+                            break;
+                        case 'admins':
+                            loadAdmins();
+                            break;
+                        default:
+                            break;
+                    }
+                });
+            });
+        });
+
+        // ================================================================
+        // 1. الإحصائيات
+        // ================================================================
+        async function loadStats() {
+            try {
+                const data = await apiFetch('/admin/stats');
+                document.getElementById('stat-users').innerText = data.totalUsers || 0;
+                document.getElementById('stat-available').innerText = data.availableCards || 0;
+                document.getElementById('stat-sold').innerText = data.soldCards || 0;
+                const revenue = parseFloat(data.totalRevenue) || 0;
+                document.getElementById('stat-revenue').innerText = revenue.toFixed(2) + ' ر.ي';
+                document.getElementById('stat-today').innerText = data.todayTransactions || 0;
+                document.getElementById('stat-month').innerText = data.monthTransactions || 0;
+            } catch (e) {
+                console.error('Stats error:', e);
+                showToast('حدث خطأ في تحميل الإحصائيات', 'danger');
+            }
+        }
+
+        // ================================================================
+        // 2. المستخدمين
+        // ================================================================
+        async function loadUsers() {
+            try {
+                const search = document.getElementById('userSearch')?.value || '';
+                const data = await apiFetch(`/admin/users?search=${encodeURIComponent(search)}`);
+                const tbody = document.querySelector('#usersTable tbody');
+                if (!data.length) {
+                    tbody.innerHTML =
+                    `<tr><td colspan="8" class="text-center text-muted py-3">لا يوجد مستخدمين</td></tr>`;
+                    return;
+                }
+                tbody.innerHTML = data.map((u, i) => `
+                        <tr>
+                            <td>${i + 1}</td>
+                            <td><strong>${u.name}</strong></td>
+                            <td>${u.phone}</td>
+                            <td>${u.balance || 0}</td>
+                            <td>${u.account_number}</td>
+                            <td><span class="badge-status ${u.status === 'suspended' ? 'bg-danger' : 'bg-success'}">${u.status === 'suspended' ? 'موقوف' : 'نشط'}</span></td>
+                            <td>${new Date(u.created_at).toLocaleDateString('ar-EG')}</td>
+                            <td class="action-buttons">
+                                <button class="btn btn-sm btn-warning" onclick="showUserModal(${u.id})"><i class="fas fa-edit"></i></button>
+                                <button class="btn btn-sm ${u.status === 'suspended' ? 'btn-success' : 'btn-secondary'}" onclick="toggleUserStatus(${u.id})">
+                                    <i class="fas ${u.status === 'suspended' ? 'fa-play' : 'fa-pause'}"></i>
+                                </button>
+                                <button class="btn btn-sm btn-danger" onclick="deleteUser(${u.id})"><i class="fas fa-trash"></i></button>
+                            </td>
+                        </tr>
+                    `).join('');
+            } catch (e) { console.error('Users error:', e); }
+        }
+
+        function showUserModal(id = null) {
+            const modal = new bootstrap.Modal(document.getElementById('userModal'));
+            const form = document.getElementById('userForm');
+            form.reset();
+            document.getElementById('user_id').value = '';
+            document.getElementById('user_password').placeholder = 'اترك فارغاً لتغييرها';
+            if (id) {
+                document.getElementById('userModalTitle').innerText = 'تعديل مستخدم';
+                apiFetch(`/admin/users/${id}`).then(u => {
+                    document.getElementById('user_id').value = u.id;
+                    document.getElementById('user_name').value = u.name;
+                    document.getElementById('user_phone').value = u.phone;
+                    document.getElementById('user_balance').value = u.balance || 0;
+                    document.getElementById('user_status').value = u.status || 'active';
+                    modal.show();
+                }).catch(() => showToast('فشل تحميل بيانات المستخدم', 'danger'));
+            } else {
+                document.getElementById('userModalTitle').innerText = 'إضافة مستخدم';
+                document.getElementById('user_status').value = 'active';
+                modal.show();
+            }
+        }
+
+        document.getElementById('userForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const id = document.getElementById('user_id').value;
+            const data = {
+                name: document.getElementById('user_name').value.trim(),
+                phone: document.getElementById('user_phone').value.trim(),
+                balance: parseFloat(document.getElementById('user_balance').value) || 0,
+                status: document.getElementById('user_status').value,
+            };
+            const password = document.getElementById('user_password').value.trim();
+            if (password) data.password = password;
+
+            try {
+                const endpoint = id ? `/admin/users/${id}` : '/admin/users';
+                const method = id ? 'PUT' : 'POST';
+                const result = await apiFetch(endpoint, { method, body: JSON.stringify(data) });
+                if (result.status) {
+                    bootstrap.Modal.getInstance(document.getElementById('userModal')).hide();
+                    loadUsers();
+                    loadStats();
+                    showToast(result.message);
+                } else {
+                    showToast(result.message || 'فشل الحفظ', 'danger');
+                }
+            } catch (err) { showToast('خطأ في الاتصال', 'danger'); }
+        });
+
+        async function toggleUserStatus(id) {
+            try {
+                const result = await apiFetch(`/admin/users/${id}/toggle-status`, { method: 'PUT' });
+                if (result.status) {
+                    loadUsers();
+                    showToast(result.message);
+                } else {
+                    showToast(result.message || 'فشل تغيير الحالة', 'danger');
+                }
+            } catch (err) { showToast('خطأ في الاتصال', 'danger'); }
+        }
+
+        async function deleteUser(id) {
+            if (!confirm('هل أنت متأكد من حذف هذا المستخدم؟')) return;
+            try {
+                const result = await apiFetch(`/admin/users/${id}`, { method: 'DELETE' });
+                if (result.status) {
+                    loadUsers();
+                    loadStats();
+                    showToast(result.message);
+                } else {
+                    showToast(result.message || 'فشل الحذف', 'danger');
+                }
+            } catch (err) { showToast('خطأ في الاتصال', 'danger'); }
+        }
+
+        // ================================================================
+        // 3. شحن الرصيد
+        // ================================================================
+        async function showRechargeModal() {
+            try {
+                const users = await apiFetch('/admin/users');
+                const select = document.getElementById('recharge_user');
+                select.innerHTML = users.map(u =>
+                    `<option value="${u.id}">${u.name} (${u.phone}) - رصيد: ${u.balance}</option>`
+                ).join('');
+                document.getElementById('recharge_amount').value = '10';
+                document.getElementById('recharge_note').value = '';
+                new bootstrap.Modal(document.getElementById('rechargeModal')).show();
+            } catch (e) {
+                showToast('فشل تحميل المستخدمين', 'danger');
+            }
+        }
+
+        document.getElementById('rechargeForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const userId = document.getElementById('recharge_user').value;
+            const amount = parseFloat(document.getElementById('recharge_amount').value);
+            const note = document.getElementById('recharge_note').value.trim();
+
+            if (!userId || !amount || amount <= 0) {
+                showToast('الرجاء اختيار المستخدم وإدخال مبلغ صحيح', 'danger');
+                return;
+            }
+
+            try {
+                const result = await apiFetch(`/admin/users/${userId}/recharge`, {
+                    method: 'POST',
+                    body: JSON.stringify({ amount, note })
+                });
+                if (result.status) {
+                    bootstrap.Modal.getInstance(document.getElementById('rechargeModal')).hide();
+                    loadUsers();
+                    loadStats();
+                    showToast(result.message);
+                } else {
+                    showToast(result.message || 'فشل الشحن', 'danger');
+                }
+            } catch (err) { showToast('خطأ في الاتصال', 'danger'); }
+        });
+
+        // ================================================================
+        // 4. الكروت
+        // ================================================================
+        async function loadCards() {
+            try {
+                const search = document.getElementById('cardSearch')?.value || '';
+                const category = document.getElementById('cardFilterCategory')?.value || '';
+                const status = document.getElementById('cardFilterStatus')?.value || '';
+                const data = await apiFetch(
+                    `/admin/cards?search=${encodeURIComponent(search)}&category=${encodeURIComponent(category)}&status=${encodeURIComponent(status)}`
+                    );
+                const tbody = document.querySelector('#cardsTable tbody');
+                if (!data.length) {
+                    tbody.innerHTML =
+                        `<tr><td colspan="9" class="text-center text-muted py-3">لا توجد كروت</td></tr>`;
+                    return;
+                }
+                tbody.innerHTML = data.map((c, i) => `
+                        <tr>
+                            <td><input type="checkbox" class="card-checkbox" value="${c.id}" onchange="updateSelectedCards()" /></td>
+                            <td>${c.id}</td>
+                            <td><code>${c.card_code}</code></td>
+                            <td>${c.category}</td>
+                            <td><span class="badge-status ${c.status === 'available' ? 'bg-success' : 'bg-danger'}">${c.status === 'available' ? 'متاحة' : 'مباعة'}</span></td>
+                            <td>${c.user_id || '-'}</td>
+                            <td>${c.receiver_phone || '-'}</td>
+                            <td>${c.sold_at ? new Date(c.sold_at).toLocaleDateString('ar-EG') : '-'}</td>
+                            <td class="action-buttons">
+                                ${c.status === 'available' ? `<button class="btn btn-sm btn-danger" onclick="deleteCard(${c.id})"><i class="fas fa-trash"></i></button>` : ''}
+                            </td>
+                        </tr>
+                    `).join('');
+                updateSelectedCards();
+            } catch (e) { console.error('Cards error:', e); }
+        }
+
+        function toggleSelectAll() {
+            const checked = document.getElementById('selectAllCards').checked;
+            document.querySelectorAll('.card-checkbox').forEach(cb => cb.checked = checked);
+            updateSelectedCards();
+        }
+
+        function updateSelectedCards() {
+            selectedCardIds.clear();
+            document.querySelectorAll('.card-checkbox:checked').forEach(cb => selectedCardIds.add(parseInt(cb.value)));
+            document.getElementById('selectAllCards').checked =
+                document.querySelectorAll('.card-checkbox').length === selectedCardIds.size;
+        }
+
+        async function loadCategorySelects() {
+            if (categoriesLoaded) return;
+            try {
+                const categories = await apiFetch('/admin/categories');
+                const selects = ['card_category', 'cardFilterCategory', 'import_category'];
+                selects.forEach(id => {
+                    const sel = document.getElementById(id);
+                    if (!sel) return;
+                    const currentVal = sel.value;
+                    const options = categories.map(c => `<option value="${c.name}">${c.name}</option>`).join('');
+                    sel.innerHTML = `<option value="">اختر فئة</option>${options}`;
+                    if (currentVal) sel.value = currentVal;
+                });
+                categoriesLoaded = true;
+            } catch (e) { console.error('loadCategorySelects error:', e); }
+        }
+
+        // ================================================================
+        // 5. إضافة كروت بالنسخ واللصق
+        // ================================================================
+        async function showBulkImportModal() {
+            await loadCategorySelects();
+            document.getElementById('import_codes').value = '';
+            new bootstrap.Modal(document.getElementById('bulkImportModal')).show();
+        }
+
+        document.getElementById('bulkImportForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const category = document.getElementById('import_category').value;
+            const codesText = document.getElementById('import_codes').value;
+            if (!category) {
+                showToast('الرجاء اختيار الفئة', 'danger');
+                return;
+            }
+            if (!codesText.trim()) {
+                showToast('الرجاء إدخال أكواد الكروت', 'danger');
+                return;
+            }
+
+            const cardCodes = codesText.split('\n')
+                .map(line => line.trim())
+                .filter(line => line.length > 0);
+
+            if (cardCodes.length === 0) {
+                showToast('لا توجد أكواد صالحة للإضافة', 'danger');
+                return;
+            }
+
+            try {
+                const result = await apiFetch('/admin/cards/bulk-import', {
+                    method: 'POST',
+                    body: JSON.stringify({ category, cardCodes })
+                });
+                if (result.status) {
+                    bootstrap.Modal.getInstance(document.getElementById('bulkImportModal')).hide();
+                    loadCards();
+                    loadStats();
+                    showToast(result.message);
+                } else {
+                    showToast(result.message || 'فشل إضافة الكروت', 'danger');
+                }
+            } catch (err) {
+                showToast('خطأ في الاتصال بالخادم: ' + err.message, 'danger');
+            }
+        });
+
+        // ================================================================
+        // 6. الفئات
+        // ================================================================
+        async function loadCategories() {
+            try {
+                const data = await apiFetch('/admin/categories');
+                const tbody = document.querySelector('#categoriesTable tbody');
+                if (!data.length) {
+                    tbody.innerHTML =
+                        `<tr><td colspan="6" class="text-center text-muted py-3">لا توجد فئات</td></tr>`;
+                    return;
+                }
+                tbody.innerHTML = data.map((c, i) => `
+                        <tr>
+                            <td>${c.id}</td>
+                            <td><strong>${c.name}</strong></td>
+                            <td>${c.price}</td>
+                            <td>${c.card_count || 0}</td>
+                            <td>${new Date(c.created_at).toLocaleDateString('ar-EG')}</td>
+                            <td class="action-buttons">
+                                <button class="btn btn-sm btn-warning" onclick="showCategoryModal(${c.id})"><i class="fas fa-edit"></i></button>
+                                <button class="btn btn-sm btn-danger" onclick="deleteCategory(${c.id})"><i class="fas fa-trash"></i></button>
+                            </td>
+                        </tr>
+                    `).join('');
+                loadCategorySelects();
+            } catch (e) { console.error('Categories error:', e); }
+        }
+
+        function showCategoryModal(id = null) {
+            const modal = new bootstrap.Modal(document.getElementById('categoryModal'));
+            const form = document.getElementById('categoryForm');
+            form.reset();
+            document.getElementById('category_id').value = '';
+            if (id) {
+                document.getElementById('categoryModalTitle').innerText = 'تعديل فئة';
+                apiFetch(`/admin/categories/${id}`).then(c => {
+                    document.getElementById('category_id').value = c.id;
+                    document.getElementById('category_name').value = c.name;
+                    document.getElementById('category_price').value = c.price;
+                    modal.show();
+                }).catch(() => showToast('فشل تحميل بيانات الفئة', 'danger'));
+            } else {
+                document.getElementById('categoryModalTitle').innerText = 'إضافة فئة';
+                modal.show();
+            }
+        }
+
+        document.getElementById('categoryForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const id = document.getElementById('category_id').value;
+            const data = {
+                name: document.getElementById('category_name').value.trim(),
+                price: parseFloat(document.getElementById('category_price').value) || 0,
+            };
+            try {
+                const endpoint = id ? `/admin/categories/${id}` : '/admin/categories';
+                const method = id ? 'PUT' : 'POST';
+                const result = await apiFetch(endpoint, { method, body: JSON.stringify(data) });
+                if (result.status) {
+                    bootstrap.Modal.getInstance(document.getElementById('categoryModal')).hide();
+                    loadCategories();
+                    loadStats();
+                    showToast(result.message);
+                } else {
+                    showToast(result.message || 'فشل الحفظ', 'danger');
+                }
+            } catch (err) { showToast('خطأ في الاتصال', 'danger'); }
+        });
+
+        async function deleteCategory(id) {
+            if (!confirm('هل أنت متأكد من حذف هذه الفئة؟ (سيتم حذف جميع الكروت التابعة لها)')) return;
+            try {
+                const result = await apiFetch(`/admin/categories/${id}`, { method: 'DELETE' });
+                if (result.status) {
+                    loadCategories();
+                    loadStats();
+                    showToast(result.message);
+                } else {
+                    showToast(result.message || 'فشل الحذف', 'danger');
+                }
+            } catch (err) { showToast('خطأ في الاتصال', 'danger'); }
+        }
+
+        // ================================================================
+        // 7. المعاملات
+        // ================================================================
+        async function loadTransactions() {
+            try {
+                const type = document.getElementById('transFilterType')?.value || '';
+                const date = document.getElementById('transFilterDate')?.value || '';
+                const data = await apiFetch(
+                    `/admin/transactions?type=${encodeURIComponent(type)}&date=${encodeURIComponent(date)}`);
+                const tbody = document.querySelector('#transactionsTable tbody');
+                if (!data.length) {
+                    tbody.innerHTML =
+                        `<tr><td colspan="6" class="text-center text-muted py-3">لا توجد معاملات</td></tr>`;
+                    return;
+                }
+                tbody.innerHTML = data.map((t, i) => `
+                        <tr>
+                            <td>${i + 1}</td>
+                            <td>${t.user_name || 'مستخدم غير معروف'}</td>
+                            <td>${t.amount}</td>
+                            <td><span class="badge-status ${t.type === 'purchase' ? 'bg-primary' : 'bg-warning'}">${t.type === 'purchase' ? 'شراء' : 'تحويل'}</span></td>
+                            <td>${t.description || '-'}</td>
+                            <td>${new Date(t.created_at).toLocaleString('ar-EG')}</td>
+                        </tr>
+                    `).join('');
+            } catch (e) { console.error('Transactions error:', e); }
+        }
+
+        async function exportTransactions() {
+            try {
+                const data = await apiFetch('/admin/transactions/export');
+                if (!data || !data.length) {
+                    showToast('لا توجد بيانات للتصدير', 'warning');
+                    return;
+                }
+                let csv = 'المستخدم,المبلغ,النوع,الوصف,التاريخ\n';
+                data.forEach(t => {
+                    csv +=
+                        `"${t.user_name || 'غير معروف'}",${t.amount},"${t.type === 'purchase' ? 'شراء' : 'تحويل'}","${t.description || '-'}","${new Date(t.created_at).toLocaleString('ar-EG')}"\n`;
+                });
+                const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+                const url = URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = `transactions_${new Date().toISOString().slice(0, 10)}.csv`;
+                a.click();
+                URL.revokeObjectURL(url);
+                showToast('تم تصدير المعاملات بنجاح');
+            } catch (err) { showToast('فشل التصدير', 'danger'); }
+        }
+
+        async function deleteAllTransactions() {
+            if (!confirm('تحذير: سيتم حذف جميع المعاملات! هل أنت متأكد؟')) return;
+            try {
+                const result = await apiFetch('/admin/transactions/all', { method: 'DELETE' });
+                if (result.status) {
+                    loadTransactions();
+                    loadStats();
+                    showToast(result.message || 'تم حذف جميع المعاملات بنجاح');
+                } else {
+                    showToast(result.message || 'فشل حذف المعاملات', 'danger');
+                }
+            } catch (err) {
+                showToast('خطأ في الاتصال بالخادم', 'danger');
+            }
+        }
+
+        // ================================================================
+        // 8. التقارير
+        // ================================================================
+        async function generateReport() {
+            const type = document.getElementById('reportType').value;
+            const user = document.getElementById('reportUser').value.trim();
+            const dateFrom = document.getElementById('reportDateFrom').value;
+            const dateTo = document.getElementById('reportDateTo').value;
+
+            try {
+                const params = new URLSearchParams({ type, user, dateFrom, dateTo });
+                const data = await apiFetch(`/admin/reports?${params.toString()}`);
+                const container = document.getElementById('reportResult');
+
+                if (!data || !data.length) {
+                    container.innerHTML =
+                        `<div class="text-center text-muted py-4">لا توجد بيانات للتقرير المطلوب</div>`;
+                    return;
+                }
+
+                let html = `<h6 class="mb-3">نتائج التقرير (${data.length} سجل)</h6>`;
+                html += `<div class="table-responsive"><table class="table table-hover">`;
+                html +=
+                    `<thead><tr><th>#</th><th>المستخدم</th><th>المبلغ</th><th>النوع</th><th>الوصف</th><th>التاريخ</th></tr></thead><tbody>`;
+                data.forEach((t, i) => {
+                    html += `<tr>
+                            <td>${i + 1}</td>
+                            <td>${t.user_name || 'غير معروف'}</td>
+                            <td>${t.amount}</td>
+                            <td><span class="badge-status ${t.type === 'purchase' ? 'bg-primary' : 'bg-warning'}">${t.type === 'purchase' ? 'شراء' : 'تحويل'}</span></td>
+                            <td>${t.description || '-'}</td>
+                            <td>${new Date(t.created_at).toLocaleString('ar-EG')}</td>
+                        </tr>`;
+                });
+                html += `</tbody></table></div>`;
+                container.innerHTML = html;
+                showToast('تم إنشاء التقرير بنجاح');
+            } catch (err) {
+                showToast('فشل إنشاء التقرير', 'danger');
+                console.error(err);
+            }
+        }
+
+        // ================================================================
+        // 9. المديرين
+        // ================================================================
+        async function loadAdmins() {
+            try {
+                const data = await apiFetch('/admin/admins');
+                const tbody = document.querySelector('#adminsTable tbody');
+                if (!data.length) {
+                    tbody.innerHTML =
+                        `<tr><td colspan="4" class="text-center text-muted py-3">لا يوجد مديرين</td></tr>`;
+                    return;
+                }
+                tbody.innerHTML = data.map((a, i) => `
+                        <tr>
+                            <td>${i + 1}</td>
+                            <td><strong>${a.username}</strong></td>
+                            <td>${new Date(a.created_at).toLocaleDateString('ar-EG')}</td>
+                            <td class="action-buttons">
+                                <button class="btn btn-sm btn-warning" onclick="showAdminModal(${a.id})"><i class="fas fa-edit"></i></button>
+                                <button class="btn btn-sm btn-danger" onclick="deleteAdmin(${a.id})"><i class="fas fa-trash"></i></button>
+                            </td>
+                        </tr>
+                    `).join('');
+            } catch (e) { console.error('Admins error:', e); }
+        }
+
+        function showAdminModal(id = null) {
+            const modal = new bootstrap.Modal(document.getElementById('adminModal'));
+            const form = document.getElementById('adminForm');
+            form.reset();
+            document.getElementById('admin_id').value = '';
+            if (id) {
+                document.getElementById('adminModalTitle').innerText = 'تعديل مدير';
+                apiFetch(`/admin/admins/${id}`).then(a => {
+                    document.getElementById('admin_id').value = a.id;
+                    document.getElementById('admin_username').value = a.username;
+                    modal.show();
+                }).catch(() => showToast('فشل تحميل بيانات المدير', 'danger'));
+            } else {
+                document.getElementById('adminModalTitle').innerText = 'إضافة مدير';
+                modal.show();
+            }
+        }
+
+        document.getElementById('adminForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const id = document.getElementById('admin_id').value;
+            const data = {
+                username: document.getElementById('admin_username').value.trim(),
+            };
+            const password = document.getElementById('admin_password').value.trim();
+            if (password) data.password = password;
+
+            try {
+                const endpoint = id ? `/admin/admins/${id}` : '/admin/admins';
+                const method = id ? 'PUT' : 'POST';
+                const result = await apiFetch(endpoint, { method, body: JSON.stringify(data) });
+                if (result.status) {
+                    bootstrap.Modal.getInstance(document.getElementById('adminModal')).hide();
+                    loadAdmins();
+                    showToast(result.message);
+                } else {
+                    showToast(result.message || 'فشل الحفظ', 'danger');
+                }
+            } catch (err) { showToast('خطأ في الاتصال', 'danger'); }
+        });
+
+        async function deleteAdmin(id) {
+            if (!confirm('هل أنت متأكد من حذف هذا المدير؟')) return;
+            try {
+                const result = await apiFetch(`/admin/admins/${id}`, { method: 'DELETE' });
+                if (result.status) {
+                    loadAdmins();
+                    showToast(result.message);
+                } else {
+                    showToast(result.message || 'فشل الحذف', 'danger');
+                }
+            } catch (err) { showToast('خطأ في الاتصال', 'danger'); }
+        }
+
+        // ================================================================
+        // دوال حذف الكروت
+        // ================================================================
+        async function deleteCard(id) {
+            if (!confirm('هل أنت متأكد من حذف هذا الكرت؟')) return;
+            try {
+                const result = await apiFetch(`/admin/cards/${id}`, { method: 'DELETE' });
+                if (result.status) {
+                    loadCards();
+                    loadStats();
+                    showToast(result.message);
+                } else {
+                    showToast(result.message || 'فشل الحذف', 'danger');
+                }
+            } catch (err) { showToast('خطأ في الاتصال', 'danger'); }
+        }
+
+        async function deleteSelectedCards() {
+            if (selectedCardIds.size === 0) {
+                showToast('الرجاء اختيار كروت للحذف', 'warning');
+                return;
+            }
+            if (!confirm(`هل أنت متأكد من حذف ${selectedCardIds.size} كرت؟`)) return;
+            try {
+                const ids = Array.from(selectedCardIds);
+                const result = await apiFetch('/admin/cards/bulk-delete', {
+                    method: 'POST',
+                    body: JSON.stringify({ cardIds: ids })
+                });
+                if (result.status) {
+                    selectedCardIds.clear();
+                    loadCards();
+                    loadStats();
+                    showToast(result.message);
+                } else {
+                    showToast(result.message || 'فشل الحذف', 'danger');
+                }
+            } catch (err) { showToast('خطأ في الاتصال', 'danger'); }
+        }
+
+        async function deleteAllCards() {
+            if (!confirm('تحذير: سيتم حذف جميع الكروت! هل أنت متأكد؟')) return;
+            try {
+                const result = await apiFetch('/admin/cards/all', { method: 'DELETE' });
+                if (result.status) {
+                    loadCards();
+                    loadStats();
+                    showToast(result.message);
+                } else {
+                    showToast(result.message || 'فشل الحذف', 'danger');
+                }
+            } catch (err) { showToast('خطأ في الاتصال', 'danger'); }
+        }
+
+        // ================================================================
+        // بدء التشغيل
+        // ================================================================
+        window.onload = function() {
+            showSplash(true);
+            setTimeout(() => {
+                showSplash(false);
+                if (currentToken) {
+                    fetch(`${API_URL}/admin/stats`, { headers: getHeaders() })
+                        .then(res => {
+                            if (res.status === 401) throw new Error('Unauthorized');
+                            return res.json();
+                        })
+                        .then(data => {
+                            if (data.totalUsers !== undefined) showDashboard();
+                            else showLogin();
+                        })
+                        .catch(() => showLogin());
+                } else {
+                    showLogin();
+                }
+            }, 800);
+        };
+    </script>
+
+    <!-- Bootstrap JS -->
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.2.3/dist/js/bootstrap.bundle.min.js">
+    </script>
+</body>
+</html>
