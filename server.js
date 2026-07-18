@@ -30,14 +30,16 @@ const getEnvVar = (names) => {
 };
 
 // ==================== إعدادات الاتصال بقاعدة البيانات ====================
+// استخراج المضيف أولاً لتجنب خطأ "Cannot access before initialization"
+const host = getEnvVar(['MYSQL_HOST', 'DB_HOST']) || 'localhost';
 const dbConfig = {
-    host: getEnvVar(['MYSQL_HOST', 'DB_HOST']) || 'localhost',
+    host: host,
     user: getEnvVar(['MYSQL_USER', 'DB_USER']) || 'root',
     password: getEnvVar(['MYSQL_PASSWORD', 'DB_PASSWORD']) || '',
     database: getEnvVar(['MYSQL_DATABASE', 'DB_NAME']) || 'wifi_app_db',
     port: parseInt(getEnvVar(['MYSQL_PORT', 'DB_PORT']) || '3306', 10),
     ssl: (process.env.DB_SSL === 'true' || process.env.MYSQL_SSL === 'true' ||
-          (dbConfig.host && (dbConfig.host.includes('aivencloud.com') || dbConfig.host.includes('railway.internal'))))
+          (host && (host.includes('aivencloud.com') || host.includes('railway.internal'))))
         ? { rejectUnauthorized: false }
         : false
 };
@@ -55,9 +57,11 @@ db.connect((err) => {
     if (err) {
         console.error('❌ فشل الاتصال بقاعدة البيانات:', err);
         console.error('💡 تأكد من إضافة خدمة MySQL في Railway أو تعيين المتغيرات الصحيحة.');
-        process.exit(1);
+        // لا نخرج من العملية حتى يستمر الخادم في التشغيل للاختبار
+        // process.exit(1); // تم التعليق لمنع تعطل الحاوية
+    } else {
+        console.log('✅ تم الاتصال بقاعدة البيانات');
     }
-    console.log('✅ تم الاتصال بقاعدة البيانات');
 });
 
 const JWT_SECRET = process.env.JWT_SECRET || 'wifi_app_super_secret_key';
