@@ -1,24 +1,40 @@
-// server.js - النسخة النهائية مع نظام المخزون المسبق
-// جميع نقاط النهاية متكاملة وآمنة
+// ================================================================
+// server.js – الخادم المتكامل (مستخدم + إدارة)
+// يدعم جميع عمليات CRUD، نظام المخزون، المعاملات، التقارير
+// متوافق مع البيئات السحابية (Railway, Aiven) عبر متغيرات البيئة و SSL
+// ================================================================
 
 const express = require('express');
 const mysql = require('mysql2');
 const bcrypt = require('bcrypt');
 const jwt = require('jsonwebtoken');
 const cors = require('cors');
+const path = require('path');
 
 const app = express();
-const port = process.env.PORT || 3000;
+const PORT = process.env.PORT || 3000;
+
 // ==================== الإعدادات الأساسية ====================
 app.use(cors());
 app.use(express.json());
+app.use(express.static('public')); // خدمة الملفات الثابتة (لوحة الإدارة)
 
-// ==================== اتصال قاعدة البيانات ====================
+// ==================== توجيه /admin إلى /admin.html ====================
+app.get('/admin', (req, res) => {
+    res.sendFile(path.join(__dirname, 'public', 'admin.html'));
+});
+
+// ==================== اتصال قاعدة البيانات (مع SSL) ====================
 const db = mysql.createConnection({
     host: process.env.DB_HOST || 'localhost',
     user: process.env.DB_USER || 'root',
     password: process.env.DB_PASSWORD || '',
-    database: process.env.DB_NAME || 'wifi_app_db'
+    database: process.env.DB_NAME || 'wifi_app_db',
+    port: process.env.DB_PORT || 3306,
+    // تفعيل SSL إذا كان المتغير موجوداً أو إذا كان المضيف من Aiven
+    ssl: (process.env.DB_SSL === 'true' || (process.env.DB_HOST && process.env.DB_HOST.includes('aivencloud.com')))
+        ? { rejectUnauthorized: false } // السماح بالشهادات الذاتية (آمن في Aiven)
+        : false
 });
 
 db.connect((err) => {
@@ -26,20 +42,50 @@ db.connect((err) => {
         console.error('❌ فشل الاتصال بقاعدة البيانات:', err);
         process.exit(1);
     }
-    console.log('✅ تم الاتصال بقاعدة البيانات (wifi_app_db)');
+    console.log('✅ تم الاتصال بقاعدة البيانات');
 });
 
-const JWT_SECRET = 'wifi_app_super_secret_key';
+const JWT_SECRET = process.env.JWT_SECRET || 'wifi_app_super_secret_key';
 
 // ==================== دوال مساعدة ====================
 function generateAccountNumber() {
     return Math.floor(1000000000 + Math.random() * 9000000000).toString();
 }
 
-// ==================== نقاط النهاية (APIs) ====================
+function generateCardCode() {
+    return `WIFI-${Date.now()}-${Math.floor(Math.random() * 100000)}`;
+}
+
+// ================================================================
+// وسيط المصادقة للإدارة
+// ================================================================
+const authenticateAdmin = (req, res, next) => {
+    const authHeader = req.headers.authorization;
+    if (!authHeader) {
+        return res.status(401).json({ status: false, message: 'غير مصرح به، يلزم توكن' });
+    }
+    const token = authHeader.split(' ')[1];
+    try {
+        const decoded = jwt.verify(token, JWT_SECRET);
+        const sql = 'SELECT id FROM admins WHERE id = ?';
+        db.query(sql, [decoded.id], (err, results) => {
+            if (err || results.length === 0) {
+                return res.status(403).json({ status: false, message: 'صلاحية غير كافية' });
+            }
+            req.adminId = decoded.id;
+            next();
+        });
+    } catch (err) {
+        return res.status(401).json({ status: false, message: 'توكن غير صالح' });
+    }
+};
+
+// ================================================================
+// 1. نقاط نهاية المستخدم
+// ================================================================
 
 // ---------------------------------------------
-// 1. تسجيل حساب جديد (Register)
+// 1.1 تسجيل حساب جديد
 // ---------------------------------------------
 app.post('/api/register', async (req, res) => {
     const { name, phone, password } = req.body;
@@ -59,7 +105,6 @@ app.post('/api/register', async (req, res) => {
             }
 
             const hashedPassword = await bcrypt.hash(password, 10);
-
             let accountNumber;
             let isUnique = false;
             let attempts = 0;
@@ -102,7 +147,7 @@ app.post('/api/register', async (req, res) => {
 });
 
 // ---------------------------------------------
-// 2. تسجيل الدخول (Login)
+// 1.2 تسجيل الدخول
 // ---------------------------------------------
 app.post('/api/login', (req, res) => {
     const { phone, password } = req.body;
@@ -146,7 +191,7 @@ app.post('/api/login', (req, res) => {
 });
 
 // ---------------------------------------------
-// 3. شراء كروت (purchase-card) – مع نظام المخزون
+// 1.3 شراء كروت (مع نظام المخزون)
 // ---------------------------------------------
 app.post('/api/purchase-card', async (req, res) => {
     const { userId, category, quantity = 1, receiverPhone } = req.body;
@@ -285,7 +330,7 @@ app.post('/api/purchase-card', async (req, res) => {
 });
 
 // ---------------------------------------------
-// 4. تحويل الرصيد (Transfer)
+// 1.4 تحويل الرصيد
 // ---------------------------------------------
 app.post('/api/transfer', async (req, res) => {
     const { senderId, receiverAccount, amount, note } = req.body;
@@ -368,7 +413,7 @@ app.post('/api/transfer', async (req, res) => {
 });
 
 // ---------------------------------------------
-// 5. إرسال الكروت عبر واتساب (send-whatsapp)
+// 1.5 إرسال الكروت عبر واتساب
 // ---------------------------------------------
 app.post('/api/send-whatsapp', (req, res) => {
     const { cardCodes, phone } = req.body;
@@ -405,7 +450,7 @@ app.post('/api/send-whatsapp', (req, res) => {
 });
 
 // ---------------------------------------------
-// 6. إرسال كود كرت محدد (send-card)
+// 1.6 إرسال كود كرت محدد
 // ---------------------------------------------
 app.post('/api/send-card', async (req, res) => {
     const { cardCode, phoneNumber } = req.body;
@@ -437,7 +482,7 @@ app.post('/api/send-card', async (req, res) => {
 });
 
 // ---------------------------------------------
-// 7. جلب مشتريات المستخدم (my-cards)
+// 1.7 جلب مشتريات المستخدم
 // ---------------------------------------------
 app.get('/api/my-cards/:userId', (req, res) => {
     const { userId } = req.params;
@@ -452,7 +497,7 @@ app.get('/api/my-cards/:userId', (req, res) => {
 });
 
 // ---------------------------------------------
-// 8. جلب الفئات (packages)
+// 1.8 جلب الفئات (للمستخدم)
 // ---------------------------------------------
 app.get('/api/packages', (req, res) => {
     const sql = 'SELECT * FROM categories ORDER BY price ASC';
@@ -466,7 +511,7 @@ app.get('/api/packages', (req, res) => {
 });
 
 // ---------------------------------------------
-// 9. جلب بيانات المستخدم (user)
+// 1.9 جلب بيانات المستخدم
 // ---------------------------------------------
 app.get('/api/user/:userId', (req, res) => {
     const { userId } = req.params;
@@ -484,7 +529,7 @@ app.get('/api/user/:userId', (req, res) => {
 });
 
 // ---------------------------------------------
-// 10. جلب مستخدم بواسطة رقم الحساب
+// 1.10 جلب مستخدم بواسطة رقم الحساب
 // ---------------------------------------------
 app.get('/api/user/account/:accountNumber', (req, res) => {
     const { accountNumber } = req.params;
@@ -502,7 +547,7 @@ app.get('/api/user/account/:accountNumber', (req, res) => {
 });
 
 // ---------------------------------------------
-// 11. جلب معاملات المستخدم (transactions)
+// 1.11 جلب معاملات المستخدم
 // ---------------------------------------------
 app.get('/api/transactions/:userId', (req, res) => {
     const { userId } = req.params;
@@ -517,7 +562,7 @@ app.get('/api/transactions/:userId', (req, res) => {
 });
 
 // ---------------------------------------------
-// 12. حذف كرت محدد (DELETE /api/cards/:cardId)
+// 1.12 حذف كرت (للمستخدم)
 // ---------------------------------------------
 app.delete('/api/cards/:cardId', (req, res) => {
     const { cardId } = req.params;
@@ -535,7 +580,7 @@ app.delete('/api/cards/:cardId', (req, res) => {
 });
 
 // ---------------------------------------------
-// 13. حذف جميع كروت مستخدم (DELETE /api/cards/user/:userId)
+// 1.13 حذف جميع كروت المستخدم
 // ---------------------------------------------
 app.delete('/api/cards/user/:userId', (req, res) => {
     const { userId } = req.params;
@@ -553,75 +598,13 @@ app.delete('/api/cards/user/:userId', (req, res) => {
     });
 });
 
-// ---------------------------------------------
-// 14. إدارة المخزون – إضافة كروت جديدة (للإدارة)
-// ---------------------------------------------
-app.post('/api/admin/cards', (req, res) => {
-    const { category, count } = req.body;
-    if (!category || !count || count <= 0) {
-        return res.status(400).json({ status: false, message: 'بيانات غير صالحة' });
-    }
-
-    const values = [];
-    for (let i = 0; i < count; i++) {
-        const cardCode = `WIFI-${Date.now()}-${Math.floor(Math.random() * 100000)}-${i}`;
-        values.push([category, cardCode, 'available', new Date()]);
-    }
-
-    const sql = 'INSERT INTO cards (category, card_code, status, created_at) VALUES ?';
-    db.query(sql, [values], (err, result) => {
-        if (err) {
-            console.error(err);
-            return res.status(500).json({ status: false, message: 'فشل إضافة الكروت' });
-        }
-        res.json({ status: true, message: `تم إضافة ${count} كرت بنجاح` });
-    });
-});
+// ================================================================
+// 2. نقاط نهاية الإدارة (Admin) – محمية بـ authenticateAdmin
+// ================================================================
 
 // ---------------------------------------------
-// 15. جلب عدد الكروت المتاحة لكل فئة (للإدارة)
+// 2.1 تسجيل دخول الإدارة
 // ---------------------------------------------
-app.get('/api/admin/available-cards', (req, res) => {
-    const sql = `
-        SELECT category, COUNT(*) as available_count 
-        FROM cards 
-        WHERE user_id IS NULL AND status = 'available' 
-        GROUP BY category
-    `;
-    db.query(sql, (err, results) => {
-        if (err) {
-            console.error(err);
-            return res.status(500).json([]);
-        }
-        res.json(results);
-    });
-});
-// ==================== نقاط نهاية الإدارة (Admin) ====================
-
-// ✅ وسيط (Middleware) للتحقق من صلاحية Admin
-const authenticateAdmin = (req, res, next) => {
-    const authHeader = req.headers.authorization;
-    if (!authHeader) {
-        return res.status(401).json({ status: false, message: 'غير مصرح به، يلزم توكن' });
-    }
-    const token = authHeader.split(' ')[1];
-    try {
-        const decoded = jwt.verify(token, JWT_SECRET);
-        // التحقق من أن المستخدم موجود في جدول admins
-        const sql = 'SELECT id FROM admins WHERE id = ?';
-        db.query(sql, [decoded.id], (err, results) => {
-            if (err || results.length === 0) {
-                return res.status(403).json({ status: false, message: 'صلاحية غير كافية' });
-            }
-            req.adminId = decoded.id;
-            next();
-        });
-    } catch (err) {
-        return res.status(401).json({ status: false, message: 'توكن غير صالح' });
-    }
-};
-
-// 1. تسجيل دخول الإدارة
 app.post('/api/admin/login', (req, res) => {
     const { username, password } = req.body;
     if (!username || !password) {
@@ -652,13 +635,17 @@ app.post('/api/admin/login', (req, res) => {
     });
 });
 
-// 2. إحصائيات لوحة التحكم
+// ---------------------------------------------
+// 2.2 إحصائيات لوحة التحكم
+// ---------------------------------------------
 app.get('/api/admin/stats', authenticateAdmin, (req, res) => {
     const queries = {
         totalUsers: 'SELECT COUNT(*) as count FROM users',
         totalCards: 'SELECT COUNT(*) as count FROM cards WHERE user_id IS NULL AND status = "available"',
         soldCards: 'SELECT COUNT(*) as count FROM cards WHERE user_id IS NOT NULL AND status = "sold"',
-        totalRevenue: 'SELECT SUM(amount) as total FROM transactions WHERE type = "purchase"'
+        totalRevenue: 'SELECT SUM(amount) as total FROM transactions WHERE type = "purchase"',
+        todayTransactions: 'SELECT COUNT(*) as count FROM transactions WHERE DATE(created_at) = CURDATE()',
+        monthTransactions: 'SELECT COUNT(*) as count FROM transactions WHERE MONTH(created_at) = MONTH(CURDATE()) AND YEAR(created_at) = YEAR(CURDATE())'
     };
 
     let results = {};
@@ -679,35 +666,170 @@ app.get('/api/admin/stats', authenticateAdmin, (req, res) => {
                     totalUsers: results.totalUsers?.count || 0,
                     availableCards: results.totalCards?.count || 0,
                     soldCards: results.soldCards?.count || 0,
-                    totalRevenue: results.totalRevenue?.total || 0
+                    totalRevenue: results.totalRevenue?.total || 0,
+                    todayTransactions: results.todayTransactions?.count || 0,
+                    monthTransactions: results.monthTransactions?.count || 0
                 });
             }
         });
     });
 });
 
-// 3. جلب جميع المستخدمين
+// ---------------------------------------------
+// 2.3 إدارة المستخدمين (CRUD + بحث + توقيف + شحن)
+// ---------------------------------------------
 app.get('/api/admin/users', authenticateAdmin, (req, res) => {
-    const sql = 'SELECT id, name, phone, balance, account_number, created_at FROM users ORDER BY id DESC';
-    db.query(sql, (err, results) => {
+    const { search } = req.query;
+    let sql = 'SELECT id, name, phone, balance, account_number, status, created_at FROM users';
+    const params = [];
+    if (search) {
+        sql += ' WHERE name LIKE ? OR phone LIKE ? OR account_number LIKE ?';
+        const s = `%${search}%`;
+        params.push(s, s, s);
+    }
+    sql += ' ORDER BY id DESC';
+    db.query(sql, params, (err, results) => {
         if (err) {
             console.error(err);
-            return res.status(500).json({ status: false, message: 'خطأ في قاعدة البيانات' });
+            return res.status(500).json([]);
         }
         res.json(results);
     });
 });
 
-// 4. جلب الكروت (مع فلتر اختياري)
+app.get('/api/admin/users/:id', authenticateAdmin, (req, res) => {
+    const { id } = req.params;
+    const sql = 'SELECT id, name, phone, balance, account_number, status FROM users WHERE id = ?';
+    db.query(sql, [id], (err, result) => {
+        if (err) return res.status(500).json({ status: false, message: 'خطأ في قاعدة البيانات' });
+        if (result.length === 0) return res.status(404).json({ status: false, message: 'المستخدم غير موجود' });
+        res.json(result[0]);
+    });
+});
+
+app.post('/api/admin/users', authenticateAdmin, async (req, res) => {
+    const { name, phone, password, balance, status } = req.body;
+    if (!name || !phone) {
+        return res.status(400).json({ status: false, message: 'الاسم والهاتف مطلوبان' });
+    }
+    try {
+        const hashed = password ? await bcrypt.hash(password, 10) : null;
+        const accountNumber = generateAccountNumber();
+        const sql = 'INSERT INTO users (name, phone, password, balance, account_number, status) VALUES (?, ?, ?, ?, ?, ?)';
+        db.query(sql, [name, phone, hashed, balance || 0, accountNumber, status || 'active'], (err, result) => {
+            if (err) {
+                console.error(err);
+                return res.status(500).json({ status: false, message: 'فشل إضافة المستخدم' });
+            }
+            res.json({ status: true, message: 'تمت إضافة المستخدم بنجاح', id: result.insertId });
+        });
+    } catch (err) {
+        console.error(err);
+        res.status(500).json({ status: false, message: 'خطأ في الخادم' });
+    }
+});
+
+app.put('/api/admin/users/:id', authenticateAdmin, async (req, res) => {
+    const { id } = req.params;
+    const { name, phone, password, balance, status } = req.body;
+    let sql = 'UPDATE users SET name = ?, phone = ?, balance = ?, status = ?';
+    const params = [name, phone, balance || 0, status || 'active'];
+    if (password) {
+        const hashed = await bcrypt.hash(password, 10);
+        sql += ', password = ?';
+        params.push(hashed);
+    }
+    sql += ' WHERE id = ?';
+    params.push(id);
+    db.query(sql, params, (err) => {
+        if (err) {
+            console.error(err);
+            return res.status(500).json({ status: false, message: 'فشل تحديث المستخدم' });
+        }
+        res.json({ status: true, message: 'تم تحديث المستخدم بنجاح' });
+    });
+});
+
+app.put('/api/admin/users/:id/toggle-status', authenticateAdmin, (req, res) => {
+    const { id } = req.params;
+    db.query('SELECT status FROM users WHERE id = ?', [id], (err, result) => {
+        if (err || result.length === 0) {
+            return res.status(404).json({ status: false, message: 'المستخدم غير موجود' });
+        }
+        const newStatus = result[0].status === 'suspended' ? 'active' : 'suspended';
+        db.query('UPDATE users SET status = ? WHERE id = ?', [newStatus, id], (err) => {
+            if (err) {
+                return res.status(500).json({ status: false, message: 'فشل تغيير الحالة' });
+            }
+            res.json({ status: true, message: `تم ${newStatus === 'active' ? 'تفعيل' : 'توقيف'} المستخدم بنجاح` });
+        });
+    });
+});
+
+app.post('/api/admin/users/:id/recharge', authenticateAdmin, (req, res) => {
+    const { id } = req.params;
+    const { amount, note } = req.body;
+    if (!amount || amount <= 0) {
+        return res.status(400).json({ status: false, message: 'المبلغ يجب أن يكون أكبر من صفر' });
+    }
+
+    db.beginTransaction((err) => {
+        if (err) {
+            return res.status(500).json({ status: false, message: 'خطأ في بدء المعاملة' });
+        }
+        db.query('UPDATE users SET balance = balance + ? WHERE id = ?', [amount, id], (err, result) => {
+            if (err || result.affectedRows === 0) {
+                return db.rollback(() => res.status(500).json({ status: false, message: 'فشل شحن الرصيد' }));
+            }
+            const transSql = 'INSERT INTO transactions (user_id, amount, type, description) VALUES (?, ?, "recharge", ?)';
+            db.query(transSql, [id, amount, note || 'شحن رصيد من لوحة الإدارة'], (err) => {
+                if (err) {
+                    return db.rollback(() => res.status(500).json({ status: false, message: 'فشل تسجيل المعاملة' }));
+                }
+                db.commit(() => {
+                    res.json({ status: true, message: `تم شحن ${amount} ر.ي بنجاح للمستخدم` });
+                });
+            });
+        });
+    });
+});
+
+app.delete('/api/admin/users/:id', authenticateAdmin, (req, res) => {
+    const { id } = req.params;
+    db.query('DELETE FROM users WHERE id = ?', [id], (err, result) => {
+        if (err) {
+            console.error(err);
+            return res.status(500).json({ status: false, message: 'فشل حذف المستخدم' });
+        }
+        if (result.affectedRows === 0) {
+            return res.status(404).json({ status: false, message: 'المستخدم غير موجود' });
+        }
+        res.json({ status: true, message: 'تم حذف المستخدم بنجاح' });
+    });
+});
+
+// ---------------------------------------------
+// 2.4 إدارة الكروت (بحث، تصفية، إضافة، تعديل، حذف، دفعات، استيراد)
+// ---------------------------------------------
 app.get('/api/admin/cards', authenticateAdmin, (req, res) => {
-    const { filter } = req.query; // 'available', 'sold', أو 'all'
-    let sql = 'SELECT * FROM cards ORDER BY id DESC';
-    if (filter === 'available') {
-        sql = 'SELECT * FROM cards WHERE user_id IS NULL AND status = "available" ORDER BY id DESC';
-    } else if (filter === 'sold') {
-        sql = 'SELECT * FROM cards WHERE user_id IS NOT NULL AND status = "sold" ORDER BY id DESC';
+    const { search, category, status } = req.query;
+    let sql = 'SELECT * FROM cards WHERE 1=1';
+    const params = [];
+    if (search) {
+        sql += ' AND (card_code LIKE ? OR category LIKE ?)';
+        const s = `%${search}%`;
+        params.push(s, s);
     }
-    db.query(sql, (err, results) => {
+    if (category) {
+        sql += ' AND category = ?';
+        params.push(category);
+    }
+    if (status) {
+        sql += ' AND status = ?';
+        params.push(status);
+    }
+    sql += ' ORDER BY id DESC';
+    db.query(sql, params, (err, results) => {
         if (err) {
             console.error(err);
             return res.status(500).json([]);
@@ -716,49 +838,96 @@ app.get('/api/admin/cards', authenticateAdmin, (req, res) => {
     });
 });
 
-// 5. جلب المعاملات
-app.get('/api/admin/transactions', authenticateAdmin, (req, res) => {
-    const sql = 'SELECT t.*, u.name as user_name FROM transactions t LEFT JOIN users u ON t.user_id = u.id ORDER BY t.created_at DESC LIMIT 100';
-    db.query(sql, (err, results) => {
-        if (err) {
-            console.error(err);
-            return res.status(500).json([]);
-        }
-        res.json(results);
+app.get('/api/admin/cards/:id', authenticateAdmin, (req, res) => {
+    const { id } = req.params;
+    db.query('SELECT * FROM cards WHERE id = ?', [id], (err, result) => {
+        if (err) return res.status(500).json({ status: false, message: 'خطأ في قاعدة البيانات' });
+        if (result.length === 0) return res.status(404).json({ status: false, message: 'الكرت غير موجود' });
+        res.json(result[0]);
     });
 });
 
-// 6. إضافة كروت إلى المخزون (مخصص للإدارة)
 app.post('/api/admin/cards', authenticateAdmin, (req, res) => {
-    const { category, count } = req.body;
-    if (!category || !count || count <= 0) {
-        return res.status(400).json({ status: false, message: 'بيانات غير صالحة' });
+    const { category, status, receiver_phone } = req.body;
+    if (!category) {
+        return res.status(400).json({ status: false, message: 'الفئة مطلوبة' });
     }
+    const cardCode = generateCardCode();
+    const sql = 'INSERT INTO cards (category, card_code, status, receiver_phone) VALUES (?, ?, ?, ?)';
+    db.query(sql, [category, cardCode, status || 'available', receiver_phone || null], (err, result) => {
+        if (err) {
+            console.error(err);
+            return res.status(500).json({ status: false, message: 'فشل إضافة الكرت' });
+        }
+        res.json({ status: true, message: 'تم إضافة الكرت بنجاح', id: result.insertId });
+    });
+});
 
+app.post('/api/admin/cards/bulk', authenticateAdmin, (req, res) => {
+    const { category, count } = req.body;
+    if (!category || !count || count < 1) {
+        return res.status(400).json({ status: false, message: 'الفئة والعدد المطلوبين (العدد > 0)' });
+    }
+    const numCount = parseInt(count);
+    if (isNaN(numCount) || numCount < 1) {
+        return res.status(400).json({ status: false, message: 'العدد يجب أن يكون رقماً صحيحاً موجباً' });
+    }
     const values = [];
-    for (let i = 0; i < count; i++) {
+    for (let i = 0; i < numCount; i++) {
         const cardCode = `WIFI-${Date.now()}-${Math.floor(Math.random() * 100000)}-${i}`;
         values.push([category, cardCode, 'available', new Date()]);
     }
-
     const sql = 'INSERT INTO cards (category, card_code, status, created_at) VALUES ?';
     db.query(sql, [values], (err, result) => {
         if (err) {
             console.error(err);
-            return res.status(500).json({ status: false, message: 'فشل إضافة الكروت' });
+            return res.status(500).json({ status: false, message: 'فشل إضافة الدفعة' });
         }
-        res.json({ status: true, message: `تم إضافة ${count} كرت بنجاح` });
+        res.json({ status: true, message: `تمت إضافة ${numCount} كرت بنجاح` });
     });
 });
 
-// 7. حذف كرت (للمشرف)
-app.delete('/api/admin/cards/:cardId', authenticateAdmin, (req, res) => {
-    const { cardId } = req.params;
-    const sql = 'DELETE FROM cards WHERE id = ?';
-    db.query(sql, [cardId], (err, result) => {
+app.post('/api/admin/cards/bulk-import', authenticateAdmin, (req, res) => {
+    const { category, cardCodes } = req.body;
+    if (!category || !cardCodes || !Array.isArray(cardCodes) || cardCodes.length === 0) {
+        return res.status(400).json({ status: false, message: 'الفئة وقائمة الأكواد مطلوبة' });
+    }
+
+    const cleanCodes = cardCodes.map(code => code.trim()).filter(code => code.length > 0);
+    if (cleanCodes.length === 0) {
+        return res.status(400).json({ status: false, message: 'لا توجد أكواد صالحة للإضافة' });
+    }
+
+    const values = cleanCodes.map(code => [category, code, 'available', new Date()]);
+    const sql = 'INSERT INTO cards (category, card_code, status, created_at) VALUES ?';
+    db.query(sql, [values], (err, result) => {
+        if (err) {
+            console.error('❌ خطأ في إضافة الكروت عبر النسخ واللصق:', err);
+            return res.status(500).json({ status: false, message: 'فشل إضافة الكروت: ' + err.message });
+        }
+        res.json({ status: true, message: `تم إضافة ${cleanCodes.length} كرت بنجاح`, addedCount: cleanCodes.length });
+    });
+});
+
+app.put('/api/admin/cards/:id', authenticateAdmin, (req, res) => {
+    const { id } = req.params;
+    const { category, status, receiver_phone } = req.body;
+    const sql = 'UPDATE cards SET category = ?, status = ?, receiver_phone = ? WHERE id = ?';
+    db.query(sql, [category, status || 'available', receiver_phone || null, id], (err) => {
         if (err) {
             console.error(err);
-            return res.status(500).json({ status: false, message: 'خطأ في الحذف' });
+            return res.status(500).json({ status: false, message: 'فشل تحديث الكرت' });
+        }
+        res.json({ status: true, message: 'تم تحديث الكرت بنجاح' });
+    });
+});
+
+app.delete('/api/admin/cards/:id', authenticateAdmin, (req, res) => {
+    const { id } = req.params;
+    db.query('DELETE FROM cards WHERE id = ?', [id], (err, result) => {
+        if (err) {
+            console.error(err);
+            return res.status(500).json({ status: false, message: 'فشل حذف الكرت' });
         }
         if (result.affectedRows === 0) {
             return res.status(404).json({ status: false, message: 'الكرت غير موجود' });
@@ -766,23 +935,379 @@ app.delete('/api/admin/cards/:cardId', authenticateAdmin, (req, res) => {
         res.json({ status: true, message: 'تم حذف الكرت بنجاح' });
     });
 });
-// ==================== تشغيل الخادم ====================
-app.listen(port, () => {
-    console.log(`🚀 الخادم شغال على http://localhost:${port}`);
+
+app.post('/api/admin/cards/bulk-delete', authenticateAdmin, (req, res) => {
+    const { cardIds } = req.body;
+    if (!cardIds || !Array.isArray(cardIds) || cardIds.length === 0) {
+        return res.status(400).json({ status: false, message: 'يرجى تحديد الكروت المراد حذفها' });
+    }
+    const placeholders = cardIds.map(() => '?').join(',');
+    const sql = `DELETE FROM cards WHERE id IN (${placeholders})`;
+    db.query(sql, cardIds, (err, result) => {
+        if (err) {
+            console.error(err);
+            return res.status(500).json({ status: false, message: 'فشل حذف الكروت المحددة' });
+        }
+        res.json({ status: true, message: `تم حذف ${result.affectedRows} كرت بنجاح` });
+    });
+});
+
+app.delete('/api/admin/cards/all', authenticateAdmin, (req, res) => {
+    db.query('DELETE FROM cards', (err, result) => {
+        if (err) {
+            console.error(err);
+            return res.status(500).json({ status: false, message: 'فشل حذف جميع الكروت' });
+        }
+        res.json({ status: true, message: `تم حذف ${result.affectedRows} كرت بنجاح` });
+    });
+});
+
+// ---------------------------------------------
+// 2.5 إدارة الفئات (CRUD)
+// ---------------------------------------------
+app.get('/api/admin/categories', authenticateAdmin, (req, res) => {
+    const sql = `
+        SELECT c.*, 
+        (SELECT COUNT(*) FROM cards WHERE category = c.name) as card_count 
+        FROM categories c 
+        ORDER BY c.id DESC
+    `;
+    db.query(sql, (err, results) => {
+        if (err) {
+            console.error(err);
+            return res.status(500).json([]);
+        }
+        res.json(results);
+    });
+});
+
+app.get('/api/admin/categories/:id', authenticateAdmin, (req, res) => {
+    const { id } = req.params;
+    db.query('SELECT * FROM categories WHERE id = ?', [id], (err, result) => {
+        if (err) return res.status(500).json({ status: false, message: 'خطأ في قاعدة البيانات' });
+        if (result.length === 0) return res.status(404).json({ status: false, message: 'الفئة غير موجودة' });
+        res.json(result[0]);
+    });
+});
+
+app.post('/api/admin/categories', authenticateAdmin, (req, res) => {
+    const { name, price } = req.body;
+    if (!name || price === undefined || price < 0) {
+        return res.status(400).json({ status: false, message: 'الاسم والسعر مطلوبان (السعر >= 0)' });
+    }
+    db.query('INSERT INTO categories (name, price) VALUES (?, ?)', [name, price], (err, result) => {
+        if (err) {
+            console.error(err);
+            return res.status(500).json({ status: false, message: 'فشل إضافة الفئة' });
+        }
+        res.json({ status: true, message: 'تمت إضافة الفئة بنجاح', id: result.insertId });
+    });
+});
+
+app.put('/api/admin/categories/:id', authenticateAdmin, (req, res) => {
+    const { id } = req.params;
+    const { name, price } = req.body;
+    if (!name || price === undefined || price < 0) {
+        return res.status(400).json({ status: false, message: 'الاسم والسعر مطلوبان (السعر >= 0)' });
+    }
+    db.query('UPDATE categories SET name = ?, price = ? WHERE id = ?', [name, price, id], (err) => {
+        if (err) {
+            console.error(err);
+            return res.status(500).json({ status: false, message: 'فشل تحديث الفئة' });
+        }
+        res.json({ status: true, message: 'تم تحديث الفئة بنجاح' });
+    });
+});
+
+app.delete('/api/admin/categories/:id', authenticateAdmin, (req, res) => {
+    const { id } = req.params;
+    db.query('SELECT name FROM categories WHERE id = ?', [id], (err, result) => {
+        if (err || result.length === 0) {
+            return res.status(404).json({ status: false, message: 'الفئة غير موجودة' });
+        }
+        const categoryName = result[0].name;
+        db.query('DELETE FROM cards WHERE category = ?', [categoryName], (err) => {
+            if (err) {
+                console.error(err);
+                return res.status(500).json({ status: false, message: 'فشل حذف الكروت التابعة' });
+            }
+            db.query('DELETE FROM categories WHERE id = ?', [id], (err) => {
+                if (err) {
+                    console.error(err);
+                    return res.status(500).json({ status: false, message: 'فشل حذف الفئة' });
+                }
+                res.json({ status: true, message: 'تم حذف الفئة والكروت التابعة لها بنجاح' });
+            });
+        });
+    });
+});
+
+// ---------------------------------------------
+// 2.6 المعاملات (فلترة، تصدير، حذف الكل)
+// ---------------------------------------------
+app.get('/api/admin/transactions', authenticateAdmin, (req, res) => {
+    const { type, date } = req.query;
+    let sql = 'SELECT t.*, u.name as user_name FROM transactions t LEFT JOIN users u ON t.user_id = u.id WHERE 1=1';
+    const params = [];
+    if (type) {
+        sql += ' AND t.type = ?';
+        params.push(type);
+    }
+    if (date) {
+        sql += ' AND DATE(t.created_at) = ?';
+        params.push(date);
+    }
+    sql += ' ORDER BY t.created_at DESC LIMIT 500';
+    db.query(sql, params, (err, results) => {
+        if (err) {
+            console.error(err);
+            return res.status(500).json([]);
+        }
+        res.json(results);
+    });
+});
+
+app.get('/api/admin/transactions/export', authenticateAdmin, (req, res) => {
+    const sql = 'SELECT t.*, u.name as user_name FROM transactions t LEFT JOIN users u ON t.user_id = u.id ORDER BY t.created_at DESC LIMIT 1000';
+    db.query(sql, (err, results) => {
+        if (err) {
+            console.error(err);
+            return res.status(500).json([]);
+        }
+        res.json(results);
+    });
+});
+
+app.delete('/api/admin/transactions/all', authenticateAdmin, (req, res) => {
+    db.query('DELETE FROM transactions', (err, result) => {
+        if (err) {
+            console.error(err);
+            return res.status(500).json({ status: false, message: 'فشل حذف المعاملات' });
+        }
+        res.json({ status: true, message: `تم حذف ${result.affectedRows} معاملة بنجاح` });
+    });
+});
+
+// ---------------------------------------------
+// 2.7 التقارير (مرنة)
+// ---------------------------------------------
+app.get('/api/admin/reports', authenticateAdmin, (req, res) => {
+    const { type, user, dateFrom, dateTo } = req.query;
+    let sql = 'SELECT t.*, u.name as user_name FROM transactions t LEFT JOIN users u ON t.user_id = u.id WHERE 1=1';
+    const params = [];
+
+    if (user) {
+        sql += ' AND u.name LIKE ?';
+        params.push(`%${user}%`);
+    }
+    if (dateFrom) {
+        sql += ' AND DATE(t.created_at) >= ?';
+        params.push(dateFrom);
+    }
+    if (dateTo) {
+        sql += ' AND DATE(t.created_at) <= ?';
+        params.push(dateTo);
+    }
+    if (type && type !== 'all') {
+        sql += ' AND t.type = ?';
+        params.push(type);
+    }
+    sql += ' ORDER BY t.created_at DESC';
+    db.query(sql, params, (err, results) => {
+        if (err) {
+            console.error(err);
+            return res.status(500).json([]);
+        }
+        res.json(results);
+    });
+});
+
+// ---------------------------------------------
+// 2.8 إدارة المديرين (CRUD)
+// ---------------------------------------------
+app.get('/api/admin/admins', authenticateAdmin, (req, res) => {
+    db.query('SELECT id, username, created_at FROM admins ORDER BY id DESC', (err, results) => {
+        if (err) {
+            console.error(err);
+            return res.status(500).json([]);
+        }
+        res.json(results);
+    });
+});
+
+app.get('/api/admin/admins/:id', authenticateAdmin, (req, res) => {
+    const { id } = req.params;
+    db.query('SELECT id, username FROM admins WHERE id = ?', [id], (err, result) => {
+        if (err) return res.status(500).json({ status: false, message: 'خطأ في قاعدة البيانات' });
+        if (result.length === 0) return res.status(404).json({ status: false, message: 'المدير غير موجود' });
+        res.json(result[0]);
+    });
+});
+
+app.post('/api/admin/admins', authenticateAdmin, async (req, res) => {
+    const { username, password } = req.body;
+    if (!username || !password) {
+        return res.status(400).json({ status: false, message: 'اسم المستخدم وكلمة المرور مطلوبان' });
+    }
+    try {
+        const hashed = await bcrypt.hash(password, 10);
+        db.query('INSERT INTO admins (username, password) VALUES (?, ?)', [username, hashed], (err, result) => {
+            if (err) {
+                console.error(err);
+                return res.status(500).json({ status: false, message: 'فشل إضافة المدير' });
+            }
+            res.json({ status: true, message: 'تمت إضافة المدير بنجاح', id: result.insertId });
+        });
+    } catch (err) {
+        console.error(err);
+        res.status(500).json({ status: false, message: 'خطأ في الخادم' });
+    }
+});
+
+app.put('/api/admin/admins/:id', authenticateAdmin, async (req, res) => {
+    const { id } = req.params;
+    const { username, password } = req.body;
+    let sql = 'UPDATE admins SET username = ?';
+    const params = [username];
+    if (password) {
+        const hashed = await bcrypt.hash(password, 10);
+        sql += ', password = ?';
+        params.push(hashed);
+    }
+    sql += ' WHERE id = ?';
+    params.push(id);
+    db.query(sql, params, (err) => {
+        if (err) {
+            console.error(err);
+            return res.status(500).json({ status: false, message: 'فشل تحديث المدير' });
+        }
+        res.json({ status: true, message: 'تم تحديث المدير بنجاح' });
+    });
+});
+
+app.delete('/api/admin/admins/:id', authenticateAdmin, (req, res) => {
+    const { id } = req.params;
+    if (parseInt(id) === req.adminId) {
+        return res.status(400).json({ status: false, message: 'لا يمكن حذف حسابك الحالي' });
+    }
+    db.query('DELETE FROM admins WHERE id = ?', [id], (err, result) => {
+        if (err) {
+            console.error(err);
+            return res.status(500).json({ status: false, message: 'فشل حذف المدير' });
+        }
+        if (result.affectedRows === 0) {
+            return res.status(404).json({ status: false, message: 'المدير غير موجود' });
+        }
+        res.json({ status: true, message: 'تم حذف المدير بنجاح' });
+    });
+});
+
+// ---------------------------------------------
+// 2.9 نقاط نهاية مؤقتة (للاختبار – يمكن حذفها بعد الاستخدام)
+// ---------------------------------------------
+app.post('/api/admin/create-admin', async (req, res) => {
+    const { username, password } = req.body;
+    if (!username || !password) {
+        return res.status(400).json({ status: false, message: 'بيانات ناقصة' });
+    }
+    try {
+        const hashed = await bcrypt.hash(password, 10);
+        console.log('🔑 [Admin] التجزئة الجديدة:', hashed);
+        db.query('DELETE FROM admins WHERE username = ?', [username], (err) => {
+            db.query('INSERT INTO admins (username, password) VALUES (?, ?)', [username, hashed], (err, result) => {
+                if (err) {
+                    console.error(err);
+                    return res.status(500).json({ status: false, message: 'فشل إنشاء المدير' });
+                }
+                console.log('✅ [Admin] تم إنشاء المدير بنجاح');
+                res.json({ status: true, message: 'تم إنشاء المدير بنجاح', hash: hashed });
+            });
+        });
+    } catch (err) {
+        console.error(err);
+        res.status(500).json({ status: false, message: 'خطأ في التشفير' });
+    }
+});
+
+app.post('/api/admin/reset-password', async (req, res) => {
+    const { username, newPassword } = req.body;
+    if (!username || !newPassword) {
+        return res.status(400).json({ status: false, message: 'بيانات ناقصة' });
+    }
+    try {
+        const hashed = await bcrypt.hash(newPassword, 10);
+        db.query('UPDATE admins SET password = ? WHERE username = ?', [hashed, username], (err, result) => {
+            if (err) {
+                console.error(err);
+                return res.status(500).json({ status: false, message: 'خطأ في التحديث' });
+            }
+            if (result.affectedRows === 0) {
+                return res.status(404).json({ status: false, message: 'المستخدم غير موجود' });
+            }
+            console.log('✅ [Admin] تم تحديث كلمة المرور بنجاح');
+            res.json({ status: true, message: 'تم تحديث كلمة المرور بنجاح' });
+        });
+    } catch (err) {
+        console.error(err);
+        res.status(500).json({ status: false, message: 'خطأ في التشفير' });
+    }
+});
+
+// ================================================================
+// تشغيل الخادم
+// ================================================================
+app.listen(PORT, () => {
+    console.log(`🚀 الخادم شغال على http://localhost:${PORT}`);
     console.log('📡 نقاط النهاية المتاحة:');
+    console.log('   ─── المستخدم ───');
     console.log('   POST /api/register');
     console.log('   POST /api/login');
     console.log('   POST /api/purchase-card (مع نظام المخزون)');
     console.log('   POST /api/transfer');
     console.log('   POST /api/send-whatsapp');
     console.log('   POST /api/send-card');
-    console.log('   POST /api/admin/cards (لإضافة كروت)');
     console.log('   GET  /api/my-cards/:userId');
     console.log('   GET  /api/packages');
     console.log('   GET  /api/user/:userId');
     console.log('   GET  /api/user/account/:accountNumber');
     console.log('   GET  /api/transactions/:userId');
-    console.log('   GET  /api/admin/available-cards (للعرض)');
     console.log('   DELETE /api/cards/:cardId');
     console.log('   DELETE /api/cards/user/:userId');
+    console.log('   ─── الإدارة (محمية) ───');
+    console.log('   POST /api/admin/login');
+    console.log('   GET  /api/admin/stats');
+    console.log('   GET  /api/admin/users (مع بحث)');
+    console.log('   GET  /api/admin/users/:id');
+    console.log('   POST /api/admin/users');
+    console.log('   PUT  /api/admin/users/:id');
+    console.log('   PUT  /api/admin/users/:id/toggle-status');
+    console.log('   POST /api/admin/users/:id/recharge');
+    console.log('   DELETE /api/admin/users/:id');
+    console.log('   GET  /api/admin/cards (مع فلتر)');
+    console.log('   GET  /api/admin/cards/:id');
+    console.log('   POST /api/admin/cards');
+    console.log('   POST /api/admin/cards/bulk (توليد تلقائي)');
+    console.log('   POST /api/admin/cards/bulk-import (نسخ ولصق)');
+    console.log('   PUT  /api/admin/cards/:id');
+    console.log('   DELETE /api/admin/cards/:id');
+    console.log('   POST /api/admin/cards/bulk-delete');
+    console.log('   DELETE /api/admin/cards/all');
+    console.log('   GET  /api/admin/categories');
+    console.log('   GET  /api/admin/categories/:id');
+    console.log('   POST /api/admin/categories');
+    console.log('   PUT  /api/admin/categories/:id');
+    console.log('   DELETE /api/admin/categories/:id');
+    console.log('   GET  /api/admin/transactions (مع فلترة)');
+    console.log('   GET  /api/admin/transactions/export');
+    console.log('   DELETE /api/admin/transactions/all');
+    console.log('   GET  /api/admin/reports');
+    console.log('   GET  /api/admin/admins');
+    console.log('   GET  /api/admin/admins/:id');
+    console.log('   POST /api/admin/admins');
+    console.log('   PUT  /api/admin/admins/:id');
+    console.log('   DELETE /api/admin/admins/:id');
+    console.log('   ─── نقاط مؤقتة ───');
+    console.log('   POST /api/admin/create-admin');
+    console.log('   POST /api/admin/reset-password');
+    console.log('\n✅ الخادم جاهز للاستخدام');
 });
